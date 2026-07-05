@@ -37,7 +37,15 @@ body{
   letter-spacing:.1px;
 }
 .wrap{max-width:1040px;margin:0 auto;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .id{font-family:var(--font-display);font-style:italic;font-size:clamp(22px,4.5vw,28px);margin-bottom:2px;}
+#refreshBtn{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1px solid var(--hairline);
+  background:var(--glass);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:color .2s,border-color .2s,transform .2s;-webkit-tap-highlight-color:transparent;}
+#refreshBtn:hover,#refreshBtn:active{color:var(--accent);border-color:var(--accent-soft);}
+#refreshBtn.spinning svg{animation:spin .8s linear infinite;}
+#refreshBtn.spinning{color:var(--gold);border-color:var(--gold-soft);}
+@keyframes spin{to{transform:rotate(360deg);}}
 .id span{color:var(--muted);font-style:normal;font-family:var(--font-mono);font-size:12px;letter-spacing:1.5px;margin-left:6px;}
 .meta-line{font-family:var(--font-mono);font-size:10px;color:var(--muted-soft);letter-spacing:.6px;
   margin-bottom:22px;display:flex;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--hairline-soft);}
@@ -174,7 +182,12 @@ textarea{min-height:90px;resize:vertical;}
 </head>
 <body>
 <div class="wrap">
-  <div class="id">MÄÄÄX <span>// FRIDAY</span></div>
+  <div class="topbar">
+    <div class="id">MÄÄÄX <span>// FRIDAY</span></div>
+    <button id="refreshBtn" title="Jetzt aktualisieren" aria-label="Aktualisieren">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+  </button>
+  </div>
   <div class="meta-line">
     <span><span class="live-dot"></span>GARMIN-SYNC</span>
     <span class="sep">·</span>
@@ -508,17 +521,22 @@ async function pushState(retry){
   }catch(e){updateSyncPill('SYNC: FEHLER');}
   pushing=false;
 }
-// Beim Wiederöffnen der App (PWA aus dem Hintergrund): alles frisch nachladen
-let lastRefresh=Date.now();
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)return;
-  pullState();
-  if(Date.now()-lastRefresh>60000){ // höchstens 1× pro Minute
-    lastRefresh=Date.now();
-    PROPOSALS=[];
-    loadGarmin();loadMails();loadCalendar();renderProposals();
-  }
-});
+// Alles frisch aus dem Netz holen (Button oben rechts & beim Wiederöffnen der App)
+let lastRefresh=0;
+async function refreshAll(force){
+  if(!force && Date.now()-lastRefresh<8000)return; // Spam-Schutz
+  lastRefresh=Date.now();
+  const btn=document.getElementById('refreshBtn');
+  if(btn)btn.classList.add('spinning');
+  PROPOSALS=[];
+  try{
+    await Promise.all([loadGarmin(),loadMails(),loadCalendar(),pullState()]);
+    renderProposals();
+  }catch(e){}
+  if(btn)setTimeout(()=>btn.classList.remove('spinning'),500);
+}
+document.getElementById('refreshBtn').addEventListener('click',()=>refreshAll(true));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAll(false);});
 
 /* Tabs */
 document.querySelectorAll('.tab-pill').forEach(b=>b.addEventListener('click',()=>{
