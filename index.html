@@ -508,7 +508,17 @@ async function pushState(retry){
   }catch(e){updateSyncPill('SYNC: FEHLER');}
   pushing=false;
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)pullState();});
+// Beim Wiederöffnen der App (PWA aus dem Hintergrund): alles frisch nachladen
+let lastRefresh=Date.now();
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;
+  pullState();
+  if(Date.now()-lastRefresh>60000){ // höchstens 1× pro Minute
+    lastRefresh=Date.now();
+    PROPOSALS=[];
+    loadGarmin();loadMails();loadCalendar();renderProposals();
+  }
+});
 
 /* Tabs */
 document.querySelectorAll('.tab-pill').forEach(b=>b.addEventListener('click',()=>{

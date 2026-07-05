@@ -1,0 +1,51 @@
+name: Garmin-Sync (Cloud)
+
+on:
+  schedule:
+    - cron: "7 * * * *"   # stündlich, läuft auch wenn der Mac aus ist
+  workflow_dispatch: {}     # manueller Start über den Actions-Tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: garmin-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Abhängigkeiten installieren
+        run: pip install -q -r cloud/requirements.txt
+
+      - name: Garmin-Token wiederherstellen
+        run: |
+          mkdir -p cloud/token
+          echo "${{ secrets.GARMIN_TOKEN_B64 }}" | base64 -d | tar -x -C cloud/token
+          ls cloud/token >/dev/null
+
+      - name: Garmin-Daten abrufen
+        run: |
+          python cloud/sync_garmin.py --days 3 \
+            --out /tmp/garmin-notes \
+            --web-json data/garmin.json
+
+      - name: Änderungen hochladen
+        run: |
+          git config user.name "garmin-bot"
+          git config user.email "actions@github.com"
+          git add data/garmin.json
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen."
+            exit 0
+          fi
+          git commit -m "Garmin-Update (Cloud) $(date -u '+%Y-%m-%d %H:%M') UTC"
+          # Falls App/Mac zwischenzeitlich gepusht haben: abgleichen und erneut versuchen
+          git push || (git pull --rebase && git push)
