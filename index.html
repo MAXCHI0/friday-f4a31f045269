@@ -182,6 +182,7 @@ textarea{min-height:90px;resize:vertical;}
       Du brauchst dafür nur einmal deinen Sync-Schlüssel einzufügen.
     </div>
     <button class="btn primary" id="syncBannerBtn" style="font-size:11px;padding:13px 22px;">🔗 SYNC JETZT AKTIVIEREN</button>
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted-soft);margin-top:10px;">Tipp: Öffne den Aktivierungs-Link von Claude, dann geht es ganz ohne Eintippen.</div>
   </div>
 
   <!-- ============ ÜBERBLICK ============ -->
@@ -351,6 +352,14 @@ const store={
 const SYNC_REPO='MAXCHI0/friday-f4a31f045269';
 const SYNC_URL=`https://api.github.com/repos/${SYNC_REPO}/contents/data/state.json`;
 const SYNC_KEYS=['friday_checkins','friday_goals','friday_weekgoals','friday_monthgoals','friday_journal','friday_decisions'];
+// Schlüssel aus dem Link (#sync=...) übernehmen — kein manuelles Tippen nötig
+(function(){
+  const m=location.hash.match(/sync=([^&]+)/);
+  if(m){
+    localStorage.setItem('friday_synckey',decodeURIComponent(m[1]));
+    history.replaceState(null,'',location.pathname+location.search); // Schlüssel aus Adresszeile entfernen
+  }
+})();
 let syncKey=localStorage.getItem('friday_synckey')||'';
 let stateSha=null,pushTimer=null,pushing=false;
 
@@ -401,8 +410,9 @@ async function pullState(rerender){
   if(!syncKey)return;
   try{
     const r=await fetch(SYNC_URL+'?ref=main&v='+Date.now(),{headers:ghHeaders()});
-    if(r.status===404){stateSha=null;updateSyncPill('SYNC: AN');schedulePush();return;}
-    if(!r.ok)throw new Error(r.status);
+    if(r.status===404){stateSha=null;updateSyncPill('SYNC: AN ✓');schedulePush();return;}
+    if(r.status===401){updateSyncPill('SYNC: SCHLÜSSEL UNGÜLTIG');return;}
+    if(!r.ok)throw new Error('HTTP '+r.status);
     const j=await r.json();
     stateSha=j.sha;
     const state=JSON.parse(b64dec(j.content));
