@@ -44,9 +44,12 @@ body{
 .meta-line .live-dot{width:5px;height:5px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live);display:inline-block;margin-right:5px;}
 
 /* Tabs unten (Daumen-freundlich auf Handy) */
-.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;justify-content:center;gap:0;
+.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;justify-content:flex-start;gap:0;
   background:rgba(0,0,0,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-top:1px solid var(--hairline-soft);padding:8px 4px calc(8px + env(safe-area-inset-bottom));}
+  border-top:1px solid var(--hairline-soft);padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+  overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.tabbar::-webkit-scrollbar{display:none;}
+@media(min-width:700px){.tabbar{justify-content:center;}}
 .tab-pill{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;color:var(--muted);
   border:none;padding:10px 7px;background:transparent;cursor:pointer;border-top:2px solid transparent;transition:color .2s;white-space:nowrap;}
 .tab-pill.active{color:var(--accent);border-top-color:var(--accent);}
@@ -137,6 +140,24 @@ textarea{min-height:90px;resize:vertical;}
 .mail .ms .subj{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail .ms .from{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail.unread .subj::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:middle;box-shadow:0 0 6px var(--gold);}
+.cal-day{font-family:var(--font-mono);font-size:9px;color:var(--gold);letter-spacing:1.6px;margin:16px 0 4px;padding-bottom:5px;border-bottom:1px solid var(--hairline-soft);text-transform:uppercase;}
+.cal-day:first-child{margin-top:0;}
+.cev{display:flex;gap:12px;padding:10px 2px;border-bottom:1px solid var(--hairline-soft);align-items:baseline;}
+.cev:last-child{border-bottom:none;}
+.cev .ct{font-family:var(--font-mono);font-size:10px;color:var(--accent);white-space:nowrap;width:52px;flex-shrink:0;}
+.cev .cn{flex:1;font-size:14px;font-weight:600;}
+.cev .cc{font-family:var(--font-mono);font-size:8.5px;color:var(--muted-soft);letter-spacing:1px;white-space:nowrap;}
+.prop{border:1px solid var(--gold-soft);background:var(--gold-dim);padding:13px 13px;border-radius:2px;margin-bottom:10px;}
+.prop .pt{font-size:14px;font-weight:600;margin-bottom:5px;}
+.prop .pm{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);letter-spacing:.5px;margin-bottom:10px;}
+.prop .pm b{color:var(--gold);font-weight:400;}
+.prop .row{gap:8px;}
+.prop .btn{padding:9px 14px;font-size:9.5px;}
+.prop .btn.ok{border-color:rgba(127,217,154,.4);color:var(--live);}
+.prop .btn.no{border-color:rgba(185,138,134,.4);color:var(--rose);}
+.prop.decided{opacity:.55;border-color:var(--hairline-soft);background:var(--glass);}
+.sync-pill{cursor:pointer;}
+.sync-pill.on{color:var(--live);}
 .jentry{padding:12px 2px;border-bottom:1px solid var(--hairline-soft);}
 .jentry .jd{font-family:var(--font-mono);font-size:9px;color:var(--gold);letter-spacing:1.2px;margin-bottom:5px;}
 .jentry .jt{font-size:14px;line-height:1.55;color:var(--ink);white-space:pre-wrap;}
@@ -150,6 +171,8 @@ textarea{min-height:90px;resize:vertical;}
     <span><span class="live-dot"></span>GARMIN-SYNC</span>
     <span class="sep">·</span>
     <span id="metaUpdated">Lade Daten …</span>
+    <span class="sep">·</span>
+    <span class="sync-pill" id="syncPill" title="Geräte-Sync">SYNC: AUS — TIPPEN</span>
   </div>
 
   <!-- ============ ÜBERBLICK ============ -->
@@ -193,6 +216,21 @@ textarea{min-height:90px;resize:vertical;}
       <div class="chart-card"><div class="head"><span class="t">Distanz pro Woche</span><span class="now" id="weekDist"></span></div>
         <div class="chart-wrap"><canvas id="chWeekDist"></canvas></div></div>
       <div id="actList"></div>
+    </div>
+  </section>
+
+  <!-- ============ KALENDER ============ -->
+  <section class="view" id="view-cal">
+    <div class="panel">
+      <h2>Termin-Vorschläge</h2>
+      <div class="sub">Aus deinen Uni-Mails erkannt — bestätigen oder ablehnen</div>
+      <span class="badge" style="color:var(--gold);background:var(--gold-dim);">KI-ERKANNT</span>
+      <div id="proposalArea"><div class="empty">Lade …</div></div>
+    </div>
+    <div class="panel">
+      <h2>Nächste Termine</h2>
+      <div class="sub">Apple Kalender — nächste 14 Tage, stündlich aktualisiert</div>
+      <div id="calArea"><div class="empty">Lade Kalender …</div></div>
     </div>
   </section>
 
@@ -282,6 +320,7 @@ textarea{min-height:90px;resize:vertical;}
 <nav class="tabbar">
   <button class="tab-pill active" data-view="home">HOME</button>
   <button class="tab-pill" data-view="garmin">GARMIN</button>
+  <button class="tab-pill" data-view="cal">KALENDER</button>
   <button class="tab-pill" data-view="mails">MAILS</button>
   <button class="tab-pill" data-view="checkin">CHECK-IN</button>
   <button class="tab-pill" data-view="goals">ZIELE</button>
@@ -294,7 +333,105 @@ const $=s=>document.querySelector(s);
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmtDay=d=>new Date(d).toLocaleDateString('de-DE',{day:'numeric',month:'numeric'});
 const todayISO=()=>{const d=new Date();return d.toISOString().slice(0,10);};
-const store={get(k,f){try{return JSON.parse(localStorage.getItem(k))??f;}catch(e){return f;}},set(k,v){localStorage.setItem(k,JSON.stringify(v));}};
+const store={
+  get(k,f){try{return JSON.parse(localStorage.getItem(k))??f;}catch(e){return f;}},
+  set(k,v){localStorage.setItem(k,JSON.stringify(v));localStorage.setItem(k+'__ts',Date.now());schedulePush();}
+};
+
+/* ============ Geräte-Sync über GitHub ============ */
+const SYNC_REPO='MAXCHI0/friday-f4a31f045269';
+const SYNC_URL=`https://api.github.com/repos/${SYNC_REPO}/contents/data/state.json`;
+const SYNC_KEYS=['friday_checkins','friday_goals','friday_weekgoals','friday_monthgoals','friday_journal','friday_decisions'];
+let syncKey=localStorage.getItem('friday_synckey')||'';
+let stateSha=null,pushTimer=null,pushing=false;
+
+function b64enc(s){return btoa(unescape(encodeURIComponent(s)));}
+function b64dec(s){return decodeURIComponent(escape(atob(s.replace(/\n/g,''))));}
+function ghHeaders(){return{Authorization:'Bearer '+syncKey,Accept:'application/vnd.github+json'};}
+
+function updateSyncPill(state){
+  const p=$('#syncPill');
+  if(!syncKey){p.textContent='SYNC: AUS — TIPPEN';p.classList.remove('on');return;}
+  p.classList.add('on');
+  p.textContent=state||'SYNC: AN';
+}
+$('#syncPill').addEventListener('click',()=>{
+  if(syncKey&&!confirm('Sync ist aktiv. Schlüssel neu eingeben?'))return;
+  const k=prompt('Sync-Schlüssel eingeben (einmalig pro Gerät):');
+  if(!k)return;
+  syncKey=k.trim();localStorage.setItem('friday_synckey',syncKey);
+  updateSyncPill('SYNC: VERBINDE …');
+  pullState(true);
+});
+
+function mergeSection(key,remoteV,remoteTs){
+  const localTs=+(localStorage.getItem(key+'__ts')||0);
+  const localV=store.get(key,null);
+  if(localV===null||remoteTs>localTs){
+    // Objekte vereinigen statt überschreiben (Check-ins pro Datum, Entscheidungen pro ID)
+    if(localV&&typeof localV==='object'&&!Array.isArray(localV)&&remoteV&&typeof remoteV==='object'){
+      localStorage.setItem(key,JSON.stringify(Object.assign({},localV,remoteV)));
+    }else if(Array.isArray(localV)&&Array.isArray(remoteV)&&key==='friday_journal'){
+      const seen=new Set(),merged=[...remoteV,...localV].filter(e=>!seen.has(e.d)&&seen.add(e.d));
+      merged.sort((a,b)=>b.d.localeCompare(a.d));
+      localStorage.setItem(key,JSON.stringify(merged));
+    }else{
+      localStorage.setItem(key,JSON.stringify(remoteV));
+    }
+    localStorage.setItem(key+'__ts',remoteTs);
+    return true;
+  }
+  return false;
+}
+
+async function pullState(rerender){
+  if(!syncKey)return;
+  try{
+    const r=await fetch(SYNC_URL+'?ref=main&v='+Date.now(),{headers:ghHeaders()});
+    if(r.status===404){stateSha=null;updateSyncPill('SYNC: AN');schedulePush();return;}
+    if(!r.ok)throw new Error(r.status);
+    const j=await r.json();
+    stateSha=j.sha;
+    const state=JSON.parse(b64dec(j.content));
+    let changed=false;
+    for(const k of SYNC_KEYS){
+      const sec=(state.sections||{})[k];
+      if(sec&&mergeSection(k,sec.v,sec.ts))changed=true;
+    }
+    updateSyncPill('SYNC: AN ✓');
+    if(changed&&rerender!==false){renderStreak();renderGoals();renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();loadCheckin();renderProposals();}
+  }catch(e){updateSyncPill('SYNC: FEHLER');}
+}
+
+function schedulePush(){
+  if(!syncKey)return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(pushState,1800);
+}
+
+async function pushState(retry){
+  if(!syncKey||pushing)return;
+  pushing=true;
+  try{
+    const sections={};
+    for(const k of SYNC_KEYS){
+      const v=store.get(k,null);
+      if(v!==null)sections[k]={v,ts:+(localStorage.getItem(k+'__ts')||Date.now())};
+    }
+    const body={message:'App-Sync '+new Date().toISOString().slice(0,16),
+      content:b64enc(JSON.stringify({updated:new Date().toISOString(),sections}))};
+    if(stateSha)body.sha=stateSha;
+    const r=await fetch(SYNC_URL,{method:'PUT',headers:ghHeaders(),body:JSON.stringify(body)});
+    if(r.status===409||r.status===422){
+      if(!retry){pushing=false;await pullState(false);return pushState(true);}
+    }
+    if(!r.ok)throw new Error(r.status);
+    stateSha=(await r.json()).content.sha;
+    updateSyncPill('SYNC: AN ✓');
+  }catch(e){updateSyncPill('SYNC: FEHLER');}
+  pushing=false;
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)pullState();});
 
 /* Tabs */
 document.querySelectorAll('.tab-pill').forEach(b=>b.addEventListener('click',()=>{
@@ -600,6 +737,62 @@ async function loadMails(){
 }
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 
+/* ============ Kalender ============ */
+async function loadCalendar(){
+  let C=null;
+  try{
+    const r=await fetch('data/calendar.json?v='+Date.now());
+    C=await r.json();
+  }catch(e){$('#calArea').innerHTML='<div class="empty">Kalender-Daten nicht erreichbar.</div>';return;}
+  if(!C.events.length){$('#calArea').innerHTML='<div class="empty">Keine Termine in den nächsten 14 Tagen.</div>';return;}
+  const byDay={};
+  for(const e of C.events){const d=e.start.slice(0,10);(byDay[d]=byDay[d]||[]).push(e);}
+  const today=todayISO();
+  const tomorrow=(()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);})();
+  $('#calArea').innerHTML=Object.keys(byDay).sort().map(d=>{
+    const label=d===today?'Heute':d===tomorrow?'Morgen':new Date(d).toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'2-digit'});
+    return `<div class="cal-day">${label}</div>`+byDay[d].map(e=>`
+      <div class="cev"><span class="ct">${e.allDay?'ganztags':e.start.slice(11,16)}</span>
+      <span class="cn">${esc(e.title)}</span><span class="cc">${esc(e.calendar)}</span></div>`).join('');
+  }).join('');
+}
+
+/* ============ Termin-Vorschläge ============ */
+let PROPOSALS=[];
+async function renderProposals(){
+  if(!PROPOSALS.length){
+    try{
+      const r=await fetch('data/proposals.json?v='+Date.now());
+      PROPOSALS=(await r.json()).proposals||[];
+    }catch(e){$('#proposalArea').innerHTML='<div class="empty">Keine Vorschläge verfügbar.</div>';return;}
+  }
+  const dec=store.get('friday_decisions',{});
+  if(!PROPOSALS.length){$('#proposalArea').innerHTML='<div class="empty">Aktuell keine Termin-Vorschläge in deinen Uni-Mails.</div>';return;}
+  $('#proposalArea').innerHTML=PROPOSALS.map(p=>{
+    const d=dec[p.id];
+    const when=new Date(p.date).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'long',year:'numeric'})+(p.time?' · '+p.time+' Uhr':'');
+    if(d){
+      const s=d.status==='accepted'
+        ?'✓ BESTÄTIGT — wird beim nächsten Sync in deinen Kalender (Uni) eingetragen'
+        :'✕ ABGELEHNT';
+      return `<div class="prop decided"><div class="pt">${esc(p.title)}</div>
+        <div class="pm"><b>${when}</b></div>
+        <div class="pm" style="margin:0;color:${d.status==='accepted'?'var(--live)':'var(--rose)'};">${s}</div></div>`;
+    }
+    return `<div class="prop"><div class="pt">${esc(p.title)}</div>
+      <div class="pm">Erkannt: <b>${esc(p.hint)}</b> · <b>${when}</b> · aus Mail vom ${p.mailDate}</div>
+      <div class="row"><button class="btn ok" data-id="${p.id}" data-a="accepted">✓ IN KALENDER</button>
+      <button class="btn no" data-id="${p.id}" data-a="rejected">✕ ABLEHNEN</button></div></div>`;
+  }).join('');
+  $('#proposalArea').querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>{
+    const p=PROPOSALS.find(x=>x.id===b.dataset.id);
+    const all=store.get('friday_decisions',{});
+    all[p.id]={status:b.dataset.a,title:p.title,date:p.date,time:p.time,decidedAt:new Date().toISOString()};
+    store.set('friday_decisions',all);
+    renderProposals();
+  }));
+}
+
 /* ============ Neural Nexus (Obsidian-Graph-Animation) ============ */
 function startNexus(){
   const cv=$('#neuralField');if(!cv)return;
@@ -665,8 +858,9 @@ function startNexus(){
 }
 
 /* ============ Start ============ */
-loadGarmin();loadMails();startNexus();loadCheckin();renderStreak();renderGoals();
+loadGarmin();loadMails();loadCalendar();renderProposals();startNexus();loadCheckin();renderStreak();renderGoals();
 renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();
+updateSyncPill();pullState();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
