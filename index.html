@@ -140,6 +140,14 @@ textarea{min-height:90px;resize:vertical;}
 .mail .ms .subj{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail .ms .from{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail.unread .subj::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:middle;box-shadow:0 0 6px var(--gold);}
+.supp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline-soft);}
+.supp:last-child{border-bottom:none;}
+.supp .sn{font-size:14px;font-weight:600;}
+.supp .sn small{display:block;font-family:var(--font-mono);font-size:9px;color:var(--muted-soft);font-weight:400;margin-top:3px;letter-spacing:.3px;}
+.supp .sv{font-family:var(--font-display);font-style:italic;font-size:20px;color:var(--accent);white-space:nowrap;}
+.supp .sv small{font-family:var(--font-mono);font-size:10px;color:var(--muted);font-style:normal;margin-left:2px;}
+#stateSeg button{flex:1;padding:13px 8px;font-size:12px;}
+#stateSeg button.on{color:var(--gold);border-color:var(--gold-soft);background:var(--gold-dim);}
 .cal-day{font-family:var(--font-mono);font-size:9px;color:var(--gold);letter-spacing:1.6px;margin:16px 0 4px;padding-bottom:5px;border-bottom:1px solid var(--hairline-soft);text-transform:uppercase;}
 .cal-day:first-child{margin-top:0;}
 .cev{display:flex;gap:12px;padding:10px 2px;border-bottom:1px solid var(--hairline-soft);align-items:baseline;}
@@ -226,6 +234,51 @@ textarea{min-height:90px;resize:vertical;}
       <div class="chart-card"><div class="head"><span class="t">Distanz pro Woche</span><span class="now" id="weekDist"></span></div>
         <div class="chart-wrap"><canvas id="chWeekDist"></canvas></div></div>
       <div id="actList"></div>
+    </div>
+  </section>
+
+  <!-- ============ MAKROS ============ -->
+  <section class="view" id="view-macros">
+    <div class="panel">
+      <h2>Form-Zustand</h2>
+      <div class="sub">Wähle deine aktuelle Trainingsphase</div>
+      <div class="seg" id="stateSeg" style="gap:8px;">
+        <button data-v="bulk">🔺 BULK</button>
+        <button data-v="cut">🔻 CUT</button>
+        <button data-v="lazy">😴 LAZY</button>
+      </div>
+      <div id="stateDesc" style="font-size:13px;color:var(--muted);line-height:1.55;margin-top:14px;"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Deine Werte</h2>
+      <div class="sub">Für die Berechnung — Basis ist dein echter Garmin-Verbrauch</div>
+      <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+        <div><label class="lbl" style="margin-top:0;">Gewicht (kg)</label><input type="number" id="bWeight" placeholder="z.B. 75" inputmode="decimal"></div>
+        <div><label class="lbl" style="margin-top:0;">Größe (cm)</label><input type="number" id="bHeight" placeholder="z.B. 180" inputmode="numeric"></div>
+        <div><label class="lbl" style="margin-top:0;">Alter</label><input type="number" id="bAge" placeholder="z.B. 22" inputmode="numeric"></div>
+        <div><label class="lbl" style="margin-top:0;">Geschlecht</label>
+          <div class="seg" id="sexSeg" style="margin-top:0;"><button data-v="m">♂</button><button data-v="w">♀</button></div>
+        </div>
+      </div>
+      <div id="tdeeNote" style="font-family:var(--font-mono);font-size:9.5px;color:var(--muted-soft);margin-top:12px;"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Makros pro Tag</h2>
+      <div class="sub" id="macroSub">Kalorien &amp; Nährstoff-Verteilung</div>
+      <div class="grid" id="macroGrid"></div>
+      <div id="macroExplain" style="font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:14px;"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Supplemente pro Tag</h2>
+      <div class="sub">Richtwerte für deine Phase</div>
+      <div id="suppList"></div>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted-soft);margin-top:14px;line-height:1.5;">
+        Richtwerte nach gängigen Sport-Ernährungsempfehlungen — keine medizinische Beratung.
+        Bei Vorerkrankungen oder Unsicherheit ärztlich abklären.
+      </div>
     </div>
   </section>
 
@@ -330,6 +383,7 @@ textarea{min-height:90px;resize:vertical;}
 <nav class="tabbar">
   <button class="tab-pill active" data-view="home">HOME</button>
   <button class="tab-pill" data-view="garmin">GARMIN</button>
+  <button class="tab-pill" data-view="macros">MAKROS</button>
   <button class="tab-pill" data-view="cal">KALENDER</button>
   <button class="tab-pill" data-view="mails">MAILS</button>
   <button class="tab-pill" data-view="checkin">CHECK-IN</button>
@@ -351,7 +405,7 @@ const store={
 /* ============ Geräte-Sync über GitHub ============ */
 const SYNC_REPO='MAXCHI0/friday-f4a31f045269';
 const SYNC_URL=`https://api.github.com/repos/${SYNC_REPO}/contents/data/state.json`;
-const SYNC_KEYS=['friday_checkins','friday_goals','friday_weekgoals','friday_monthgoals','friday_journal','friday_decisions'];
+const SYNC_KEYS=['friday_checkins','friday_goals','friday_weekgoals','friday_monthgoals','friday_journal','friday_decisions','friday_body'];
 // Schlüssel aus dem Link (#sync=...) übernehmen — kein manuelles Tippen nötig
 (function(){
   const m=location.hash.match(/sync=([^&]+)/);
@@ -422,7 +476,7 @@ async function pullState(rerender){
       if(sec&&mergeSection(k,sec.v,sec.ts))changed=true;
     }
     updateSyncPill('SYNC: AN ✓');
-    if(changed&&rerender!==false){renderStreak();renderGoals();renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();loadCheckin();renderProposals();}
+    if(changed&&rerender!==false){renderStreak();renderGoals();renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();loadCheckin();renderProposals();renderMacros();}
   }catch(e){updateSyncPill('SYNC: FEHLER');}
 }
 
@@ -499,7 +553,7 @@ async function loadGarmin(){
   }catch(e){$('#metaUpdated').textContent='Garmin-Daten nicht erreichbar';return;}
   const gen=G.generated?new Date(G.generated):null;
   $('#metaUpdated').textContent=gen?('Stand: '+gen.toLocaleString('de-DE',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr'):'';
-  renderToday();renderCharts();renderActivities();
+  renderToday();renderCharts();renderActivities();renderMacros();
 }
 
 function renderToday(){
@@ -816,6 +870,102 @@ async function renderProposals(){
   }));
 }
 
+/* ============ Makros & Supplemente ============ */
+const STATES={
+  bulk:{label:'Bulk (Masseaufbau)',kcalF:1.12,prot:1.9,fat:1.0,
+    desc:'Kalorienüberschuss für Muskelaufbau. Etwas mehr Kohlenhydrate für Kraft & Volumen im Training. Ziel: langsam & sauber zunehmen (~0,25–0,5 kg/Woche).'},
+  cut:{label:'Cut (Definition)',kcalF:0.80,prot:2.2,fat:0.9,
+    desc:'Kaloriendefizit zum Fettabbau. Hohes Protein schützt die Muskulatur, Kohlenhydrate rund ums Training gelegt. Ziel: Fett verlieren, Kraft halten.'},
+  lazy:{label:'Lazy (Erhaltung)',kcalF:1.0,prot:1.6,fat:1.0,
+    desc:'Erhaltungsphase ohne aktives Zu- oder Abnehmen. Ausgewogene Verteilung, entspanntes Essen auf Verbrauchsniveau.'}
+};
+
+function avgTDEE(){
+  if(!G||!G.wellness)return null;
+  const vals=Object.values(G.wellness).map(w=>w.totalKilocalories).filter(v=>v!=null);
+  if(!vals.length)return null;
+  const recent=vals.slice(-14);
+  return Math.round(recent.reduce((a,b)=>a+b,0)/recent.length);
+}
+function mifflin(b){
+  if(!b.weight||!b.height||!b.age)return null;
+  const s=b.sex==='w'?-161:5;
+  const bmr=10*b.weight+6.25*b.height-5*b.age+s;
+  return Math.round(bmr*1.5); // moderat aktiv
+}
+
+function getBody(){return store.get('friday_body',{state:'lazy',weight:'',height:'',age:'',sex:'m'});}
+
+function renderMacros(){
+  const b=getBody();
+  // Eingaben spiegeln
+  $('#bWeight').value=b.weight||'';$('#bHeight').value=b.height||'';$('#bAge').value=b.age||'';
+  $('#stateSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v===b.state));
+  $('#sexSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v===(b.sex||'m')));
+  const st=STATES[b.state]||STATES.lazy;
+  $('#stateDesc').textContent=st.desc;
+
+  // Kalorienbasis: gemessener Garmin-Verbrauch, sonst Formel
+  const garmin=avgTDEE();
+  const formel=mifflin(b);
+  const maint=garmin||formel;
+  if(garmin)$('#tdeeNote').innerHTML=`Basis: dein Garmin-Verbrauch <b style="color:var(--live)">Ø ${garmin} kcal/Tag</b> (letzte 14 Tage)`;
+  else if(formel)$('#tdeeNote').innerHTML=`Basis: Schätzung aus deinen Werten <b>${formel} kcal/Tag</b> (Garmin-Verbrauch noch nicht verfügbar)`;
+  else $('#tdeeNote').innerHTML='Gib Gewicht, Größe & Alter ein, damit ich ohne Garmin-Daten rechnen kann.';
+
+  const w=parseFloat(b.weight)||0;
+  if(!maint){
+    $('#macroGrid').innerHTML='<div class="empty" style="grid-column:1/-1;">Bitte Werte oben eingeben.</div>';
+    $('#macroExplain').textContent='';$('#suppList').innerHTML='';
+    return;
+  }
+  const target=Math.round(maint*st.kcalF/10)*10;
+  const diff=target-maint;
+  let protG=null,fatG=null,carbG=null;
+  if(w){
+    protG=Math.round(w*st.prot);
+    fatG=Math.round(w*st.fat);
+    carbG=Math.max(0,Math.round((target-protG*4-fatG*9)/4));
+  }
+  const tiles=[
+    {k:'Kalorien',v:target,u:'kcal',cls:'gold'},
+    {k:'Protein',v:protG,u:'g',cls:'live'},
+    {k:'Kohlenhydrate',v:carbG,u:'g',cls:''},
+    {k:'Fett',v:fatG,u:'g',cls:'rose'}
+  ];
+  $('#macroSub').innerHTML=st.label+' · '+(diff>0?`+${diff}`:diff)+' kcal ggü. Verbrauch';
+  $('#macroGrid').innerHTML=tiles.map(t=>
+    `<div class="stat ${t.cls}"><div class="k">${t.k}</div><div class="v">${t.v!=null?t.v:'–'}<small>${t.u}</small></div></div>`).join('');
+  $('#macroExplain').innerHTML = w
+    ? `Verteilung für <b>${b.weight} kg</b>: <b>${st.prot} g</b> Protein und <b>${st.fat} g</b> Fett pro kg Körpergewicht, der Rest als Kohlenhydrate. Protein auf 3–4 Mahlzeiten verteilen, Kohlenhydrate v.a. rund ums Training.`
+    : 'Trag dein <b>Gewicht</b> ein, dann rechne ich Protein, Kohlenhydrate und Fett exakt aus.';
+
+  // Supplemente
+  const koffein=w?Math.round(w*3):null;
+  const supps=[
+    {n:'Kreatin Monohydrat',note:'täglich, konstant — auch an Ruhetagen',v:5,u:'g'},
+    {n:'Magnesium',note:b.state==='lazy'?'z.B. abends':'Trainingstage eher 400 mg',v:b.state==='lazy'?350:400,u:'mg'},
+    {n:'Omega-3 (EPA/DHA)',note:'mit einer Mahlzeit',v:2,u:'g'},
+    {n:'Vitamin D3',note:'v.a. Winterhalbjahr',v:2000,u:'IE'},
+    {n:'Koffein (optional)',note:'~30 Min. vor dem Training',v:koffein,u:'mg'}
+  ];
+  if(b.state==='cut')supps.splice(3,0,{n:'Elektrolyte',note:'bei Defizit & Schwitzen',v:1,u:'Portion'});
+  $('#suppList').innerHTML=supps.map(s=>
+    `<div class="supp"><div class="sn">${s.n}<small>${s.note}</small></div><div class="sv">${s.v!=null?s.v:'–'}<small>${s.u}</small></div></div>`).join('');
+}
+
+function saveBody(patch){
+  const b=Object.assign(getBody(),patch);
+  store.set('friday_body',b);
+  renderMacros();
+}
+$('#stateSeg').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>saveBody({state:x.dataset.v})));
+$('#sexSeg').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>saveBody({sex:x.dataset.v})));
+['bWeight','bHeight','bAge'].forEach(id=>{
+  const key={bWeight:'weight',bHeight:'height',bAge:'age'}[id];
+  $('#'+id).addEventListener('change',()=>saveBody({[key]:$('#'+id).value}));
+});
+
 /* ============ Neural Nexus (Obsidian-Graph-Animation) ============ */
 function startNexus(){
   const cv=$('#neuralField');if(!cv)return;
@@ -882,7 +1032,7 @@ function startNexus(){
 
 /* ============ Start ============ */
 loadGarmin();loadMails();loadCalendar();renderProposals();startNexus();loadCheckin();renderStreak();renderGoals();
-renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();
+renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();renderMacros();
 updateSyncPill();pullState();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
