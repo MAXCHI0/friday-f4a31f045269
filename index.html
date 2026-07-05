@@ -940,18 +940,32 @@ function renderMacros(){
     ? `Verteilung für <b>${b.weight} kg</b>: <b>${st.prot} g</b> Protein und <b>${st.fat} g</b> Fett pro kg Körpergewicht, der Rest als Kohlenhydrate. Protein auf 3–4 Mahlzeiten verteilen, Kohlenhydrate v.a. rund ums Training.`
     : 'Trag dein <b>Gewicht</b> ein, dann rechne ich Protein, Kohlenhydrate und Fett exakt aus.';
 
-  // Supplemente
+  // Supplemente — Basis täglich, Optionales je nach Phase/Training
   const koffein=w?Math.round(w*3):null;
-  const supps=[
+  const basis=[
     {n:'Kreatin Monohydrat',note:'täglich, konstant — auch an Ruhetagen',v:5,u:'g'},
-    {n:'Magnesium',note:b.state==='lazy'?'z.B. abends':'Trainingstage eher 400 mg',v:b.state==='lazy'?350:400,u:'mg'},
-    {n:'Omega-3 (EPA/DHA)',note:'mit einer Mahlzeit',v:2,u:'g'},
-    {n:'Vitamin D3',note:'v.a. Winterhalbjahr',v:2000,u:'IE'},
-    {n:'Koffein (optional)',note:'~30 Min. vor dem Training',v:koffein,u:'mg'}
+    {n:'Magnesium (Citrat/Bisglycinat)',note:b.state==='lazy'?'abends — Regeneration & Schlaf':'abends — an Trainingstagen eher 400 mg',v:b.state==='lazy'?350:400,u:'mg'},
+    {n:'Omega-3 (EPA/DHA)',note:'mit einer fetthaltigen Mahlzeit',v:2,u:'g'},
+    {n:'Vitamin D3',note:'v.a. Winterhalbjahr, mit Fett einnehmen',v:2000,u:'IE'},
+    {n:'Zink',note:'abends — Immunsystem & Regeneration',v:15,u:'mg'},
+    {n:'Whey-Protein',note:'nur falls du dein Protein-Ziel übers Essen nicht schaffst (1 Shake ≈ 30 g)',v:30,u:'g'}
   ];
-  if(b.state==='cut')supps.splice(3,0,{n:'Elektrolyte',note:'bei Defizit & Schwitzen',v:1,u:'Portion'});
-  $('#suppList').innerHTML=supps.map(s=>
-    `<div class="supp"><div class="sn">${s.n}<small>${s.note}</small></div><div class="sv">${s.v!=null?s.v:'–'}<small>${s.u}</small></div></div>`).join('');
+  const optional=[
+    {n:'Koffein',note:'~30–45 Min. vor dem Training (3 mg/kg)',v:koffein,u:'mg'},
+    {n:'Beta-Alanin',note:'täglich — stark für Intervalle & Schwimmen (Kribbeln ist harmlos)',v:3.2,u:'g'},
+    {n:'Citrullin-Malat',note:'~40 Min. vor harten Einheiten',v:7,u:'g'},
+    {n:'Ashwagandha (KSM-66)',note:'abends — Erholung & Schlafqualität',v:400,u:'mg'},
+    {n:'Vitamin C',note:'bei hohem Pensum & in der Erkältungszeit',v:250,u:'mg'}
+  ];
+  if(b.state==='cut'){
+    optional.unshift({n:'Elektrolyte',note:'im Defizit & bei viel Schwitzen',v:1,u:'Portion'});
+    optional.push({n:'Multivitamin',note:'Absicherung bei wenig Kalorien',v:1,u:'/Tag'});
+  }
+  if(b.state==='bulk')optional.push({n:'Maltodextrin / Cluster-Dextrin',note:'nach dem Training, wenn das Kalorienziel schwer erreichbar ist',v:50,u:'g'});
+  const row=s=>`<div class="supp"><div class="sn">${s.n}<small>${s.note}</small></div><div class="sv">${s.v!=null?s.v:'–'}<small>${s.u}</small></div></div>`;
+  $('#suppList').innerHTML=
+    `<div class="mail-h"><span>BASIS — JEDEN TAG</span></div>`+basis.map(row).join('')+
+    `<div class="mail-h" style="margin-top:22px;"><span>OPTIONAL — JE NACH ZIEL &amp; TRAINING</span></div>`+optional.map(row).join('');
 }
 
 function saveBody(patch){
