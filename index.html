@@ -172,7 +172,16 @@ textarea{min-height:90px;resize:vertical;}
     <span class="sep">·</span>
     <span id="metaUpdated">Lade Daten …</span>
     <span class="sep">·</span>
-    <span class="sync-pill" id="syncPill" title="Geräte-Sync">SYNC: AUS — TIPPEN</span>
+    <span class="sync-pill" id="syncPill" title="Geräte-Sync">SYNC: AUS</span>
+  </div>
+
+  <div id="syncBanner" style="display:none;border:1px solid var(--gold-soft);background:var(--gold-dim);padding:16px 16px;border-radius:2px;margin:-14px 0 22px;">
+    <div style="font-family:var(--font-display);font-style:italic;font-size:17px;margin-bottom:6px;">Geräte-Sync einrichten</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">
+      Damit Check-ins, Ziele und bestätigte Termine auf allen Geräten gleich sind.
+      Du brauchst dafür nur einmal deinen Sync-Schlüssel einzufügen.
+    </div>
+    <button class="btn primary" id="syncBannerBtn" style="font-size:11px;padding:13px 22px;">🔗 SYNC JETZT AKTIVIEREN</button>
   </div>
 
   <!-- ============ ÜBERBLICK ============ -->
@@ -351,18 +360,22 @@ function ghHeaders(){return{Authorization:'Bearer '+syncKey,Accept:'application/
 
 function updateSyncPill(state){
   const p=$('#syncPill');
-  if(!syncKey){p.textContent='SYNC: AUS — TIPPEN';p.classList.remove('on');return;}
+  const banner=$('#syncBanner');
+  if(!syncKey){p.textContent='SYNC: AUS';p.classList.remove('on');if(banner)banner.style.display='block';return;}
   p.classList.add('on');
   p.textContent=state||'SYNC: AN';
+  if(banner)banner.style.display='none';
 }
-$('#syncPill').addEventListener('click',()=>{
+function askSyncKey(){
   if(syncKey&&!confirm('Sync ist aktiv. Schlüssel neu eingeben?'))return;
-  const k=prompt('Sync-Schlüssel eingeben (einmalig pro Gerät):');
+  const k=prompt('Füge hier deinen Sync-Schlüssel ein (beginnt mit gho_):');
   if(!k)return;
   syncKey=k.trim();localStorage.setItem('friday_synckey',syncKey);
   updateSyncPill('SYNC: VERBINDE …');
   pullState(true);
-});
+}
+$('#syncPill').addEventListener('click',askSyncKey);
+$('#syncBannerBtn').addEventListener('click',askSyncKey);
 
 function mergeSection(key,remoteV,remoteTs){
   const localTs=+(localStorage.getItem(key+'__ts')||0);
