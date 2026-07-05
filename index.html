@@ -561,9 +561,17 @@ async function loadGarmin(){
     const r=await fetch('data/garmin.json?v='+Date.now());
     G=await r.json();
   }catch(e){$('#metaUpdated').textContent='Garmin-Daten nicht erreichbar';return;}
-  const gen=G.generated?new Date(G.generated):null;
-  $('#metaUpdated').textContent=gen?('Stand: '+gen.toLocaleString('de-DE',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr'):'';
+  noteFreshness('garmin',G.generated);
   renderToday();renderCharts();renderActivities();renderMacros();
+}
+
+// "Stand" = die jüngste Aktualisierung aus allen Quellen (Garmin-Cloud & Mac-Sync)
+const FRESH={};
+function noteFreshness(src,iso){
+  if(!iso)return;
+  FRESH[src]=new Date(iso);
+  const newest=Object.values(FRESH).sort((a,b)=>b-a)[0];
+  $('#metaUpdated').textContent='Stand: '+newest.toLocaleString('de-DE',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr';
 }
 
 function renderToday(){
@@ -810,6 +818,7 @@ async function loadMails(){
     M=await r.json();
   }catch(e){$('#mailArea').innerHTML='<div class="empty">Mail-Daten nicht erreichbar.</div>';return;}
   const gen=M.generated?new Date(M.generated):null;
+  noteFreshness('mail',M.generated);
   $('#mailBadge').textContent=gen?('STAND '+gen.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' UHR'):'SYNC';
   $('#mailArea').innerHTML=M.accounts.map(a=>{
     const rows=a.messages.length?a.messages.map(m=>{
@@ -831,6 +840,7 @@ async function loadCalendar(){
     const r=await fetch('data/calendar.json?v='+Date.now());
     C=await r.json();
   }catch(e){$('#calArea').innerHTML='<div class="empty">Kalender-Daten nicht erreichbar.</div>';return;}
+  noteFreshness('cal',C.generated);
   if(!C.events.length){$('#calArea').innerHTML='<div class="empty">Keine Termine in den nächsten 14 Tagen.</div>';return;}
   const byDay={};
   for(const e of C.events){const d=e.start.slice(0,10);(byDay[d]=byDay[d]||[]).push(e);}

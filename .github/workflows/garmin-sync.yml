@@ -2,11 +2,14 @@ name: Garmin-Sync (Cloud)
 
 on:
   schedule:
-    - cron: "7 * * * *"   # stündlich, läuft auch wenn der Mac aus ist
-  workflow_dispatch: {}     # manueller Start über den Actions-Tab
+    - cron: "*/30 * * * *"  # alle 30 Min — GitHub verzögert Zeitpläne oft, so bleibt es trotzdem frisch
+  workflow_dispatch: {}      # manueller Start über den Actions-Tab
 
 permissions:
   contents: write
+
+env:
+  TZ: Europe/Berlin          # Zeitstempel in deutscher Zeit statt UTC
 
 concurrency:
   group: garmin-sync
