@@ -209,9 +209,9 @@ textarea{min-height:90px;resize:vertical;}
   <!-- ============ ÜBERBLICK ============ -->
   <section class="view active" id="view-home">
     <div class="panel" style="padding:10px 8px 4px;overflow:hidden;">
-      <div class="nexus-wrap" style="position:relative;height:clamp(250px,48vw,380px);">
+      <div class="nexus-wrap" style="position:relative;height:clamp(320px,62vw,480px);">
         <canvas id="neuralField" style="width:100%;height:100%;display:block;"></canvas>
-        <div style="position:absolute;bottom:10px;left:14px;font-family:var(--font-mono);font-size:8px;letter-spacing:2px;color:var(--muted-soft);">// HOLO-GLOBUS</div>
+        <div style="position:absolute;bottom:10px;left:14px;font-family:var(--font-mono);font-size:8px;letter-spacing:2px;color:var(--muted-soft);">// NEURAL CORE</div>
       </div>
     </div>
     <div class="panel">
@@ -1031,56 +1031,90 @@ function startNexus(){
   }
   resize();addEventListener('resize',resize);
 
-  // Holo-Globus: viele Punkte auf einer Kugel (Fibonacci-Verteilung), rotierend,
-  // mit Atmung nach innen und außen.
-  const N=Math.min(700,Math.max(380,Math.floor(innerWidth*1.1)));
-  const pts=[];
-  for(let i=0;i<N;i++){
-    const y=1-(i/(N-1))*2;                    // -1 .. 1
-    const rr=Math.sqrt(Math.max(0,1-y*y));
-    const th=i*2.399963229;                    // goldener Winkel
-    pts.push({x:Math.cos(th)*rr, y:y, z:Math.sin(th)*rr, ph:Math.random()*Math.PI*2});
-  }
   const TAU=Math.PI*2;
+  // Dichtes, gehirnförmiges Geflecht (zwei Hälften), innen mit Fäden gefüllt,
+  // viele Neuronen mit Schweif fliegen hindurch.
+  const N=Math.min(680,Math.max(360,Math.floor(innerWidth*1.05)));  // Komplexität skaliert mit Bildschirm
+  const K=6;                                                         // Verbindungen pro Knoten
+  const EL=1.16, WR=0.09, FIS=0.6;                                   // Form: länglich, Windungen, Mittelfurche
+
+  function brainPt(){
+    const u=Math.random(),v=Math.random(),th=u*TAU,ph=Math.acos(2*v-1);
+    const dx=Math.sin(ph)*Math.cos(th),dy=Math.cos(ph),dz=Math.sin(ph)*Math.sin(th);
+    const rr=Math.cbrt(Math.random());                              // gefülltes Volumen
+    let R=1+WR*(Math.sin(dx*6+dz*5)+0.8*Math.sin(dy*7-dx*4)+0.7*Math.sin(dz*8+dy*3));
+    const fis=Math.exp(-(dx*dx)/0.03)*Math.max(0,dy+0.15);          // Furche oben-mittig
+    R-=FIS*fis;
+    return{x:dx*R*rr*1.03, y:dy*R*rr*0.88, z:dz*R*rr*EL, ph:Math.random()*TAU};
+  }
+  const pts=[];for(let i=0;i<N;i++)pts.push(brainPt());
+
+  // k-nächste-Nachbarn → trianguliertes Geflecht + Nachbarschaftsliste für die Neuronen
+  const adj=pts.map(()=>[]);const edges=[];const eset=new Set();
+  for(let i=0;i<N;i++){
+    const ds=[];for(let j=0;j<N;j++)if(i!==j){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,dz=pts[i].z-pts[j].z;ds.push([dx*dx+dy*dy+dz*dz,j]);}
+    ds.sort((a,b)=>a[0]-b[0]);
+    for(let m=0;m<K;m++){const j=ds[m][1],key=i<j?i+'_'+j:j+'_'+i;if(!eset.has(key)){eset.add(key);edges.push([i,j]);adj[i].push(j);adj[j].push(i);}}
+  }
+
+  // viele fliegende Neuronen mit Schweif
+  const NEUR=Math.round(N/16);
+  const neurons=[];
+  for(let i=0;i<NEUR;i++){let a=(Math.random()*N)|0;const b=adj[a].length?adj[a][(Math.random()*adj[a].length)|0]:a;neurons.push({from:a,to:b,p:Math.random(),sp:0.028+Math.random()*0.022,tr:[]});}
+  // zusätzlich funkelnde Oberflächen-Neuronen
+  const twk=[];for(let i=0;i<Math.round(N/14);i++)twk.push({node:(Math.random()*N)|0,ph:Math.random()*TAU,sp:0.02+Math.random()*0.03});
+
+  const tilt=-0.35, cT=Math.cos(tilt), sT=Math.sin(tilt);
+
+  function star(x,y,s,al){
+    ctx.shadowColor='rgba(150,220,255,0.95)';ctx.shadowBlur=9*al;
+    ctx.fillStyle='rgba(235,248,255,'+al.toFixed(2)+')';ctx.beginPath();ctx.arc(x,y,s,0,TAU);ctx.fill();ctx.shadowBlur=0;
+    const f=s*3;ctx.strokeStyle='rgba(220,242,255,'+(al*0.6).toFixed(2)+')';ctx.lineWidth=0.6;
+    ctx.beginPath();ctx.moveTo(x-f,y);ctx.lineTo(x+f,y);ctx.moveTo(x,y-f);ctx.lineTo(x,y+f);ctx.stroke();
+  }
 
   function frame(t){
     ctx.clearRect(0,0,W,H);
-    const cx=W/2, cy=H/2;
-    const baseR=Math.min(W,H)*0.44;
-    const a=t*0.00034;                         // langsame Rotation um die Hochachse
-    const ca=Math.cos(a), sa=Math.sin(a);
-    const breath=1+Math.sin(t*0.0011)*0.15;    // globales Ein-/Ausatmen (nach innen/außen)
+    const cx=W/2, cy=H/2, R=Math.min(W,H)*0.46;      // größer
+    const a=t*0.00027, ca=Math.cos(a), sa=Math.sin(a);
+    const br=1+Math.sin(t*0.0009)*0.06;
 
-    // dezente Längenkreise für Struktur
-    ctx.strokeStyle='rgba(199,223,225,0.05)';ctx.lineWidth=0.6;
-    for(let k=-2;k<=2;k++){
-      const yk=k*0.34;const ringR=Math.sqrt(Math.max(0,1-yk*yk));
-      ctx.beginPath();
-      for(let d=0;d<=48;d++){
-        const ang=d/48*TAU;
-        const x=Math.cos(ang)*ringR, z=Math.sin(ang)*ringR;
-        const xr=x*ca - z*sa;
-        const sx=cx+xr*baseR*breath, sy=cy+yk*baseR*breath;
-        d===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);
-      }
-      ctx.stroke();
+    // projizierte Punkte (Y-Rotation + fester Kipp für die Gehirn-Silhouette)
+    const S=new Array(N);
+    for(let i=0;i<N;i++){
+      const n=pts[i];
+      const xr=n.x*ca - n.z*sa, zr=n.x*sa + n.z*ca;
+      const ty=n.y*cT - zr*sT, tz=n.y*sT + zr*cT;
+      S[i]={x:cx+xr*R*br, y:cy+ty*R*br, d:Math.max(0,Math.min(1,(tz+1.3)/2.6))};
     }
 
-    // Punkte — jeder atmet zusätzlich individuell nach innen/außen
-    for(const p of pts){
-      const pr=breath*(1+Math.sin(t*0.0017+p.ph)*0.07);
-      const x=p.x*pr, yy=p.y*pr, z=p.z*pr;
-      const xr=x*ca - z*sa;
-      const zr=x*sa + z*ca;
-      const sx=cx+xr*baseR, sy=cy+yy*baseR;
-      const depth=(zr+1)/2;                    // 0 hinten .. 1 vorne
-      const rad=0.5+depth*1.9;
-      const front=depth>0.72;
-      if(front){ctx.shadowColor='rgba(111,179,217,0.7)';ctx.shadowBlur=6*depth;}
-      const col=depth>0.5?'111,179,217':'199,223,225';
-      ctx.fillStyle='rgba('+col+','+(0.12+depth*0.8).toFixed(2)+')';
-      ctx.beginPath();ctx.arc(sx,sy,rad,0,TAU);ctx.fill();
-      if(front)ctx.shadowBlur=0;
+    // Geflecht (Tiefe: vorne kräftig blau, hinten blass)
+    for(let e=0;e<edges.length;e++){
+      const A=S[edges[e][0]], B=S[edges[e][1]], dep=(A.d+B.d)/2;
+      const cr=(127+73*(1-dep))|0, cg=(208+7*(1-dep))|0;
+      ctx.strokeStyle='rgba('+cr+','+cg+',225,'+(0.045+dep*0.26).toFixed(3)+')';
+      ctx.lineWidth=0.34;
+      ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();
+    }
+    // Knoten
+    for(let i=0;i<N;i++){const s=S[i];ctx.fillStyle='rgba(199,223,225,'+(0.07+s.d*0.5).toFixed(2)+')';ctx.beginPath();ctx.arc(s.x,s.y,0.4+s.d*1.1,0,TAU);ctx.fill();}
+
+    // funkelnde Oberflächen-Neuronen
+    for(const w of twk){w.ph+=w.sp;const tw=Math.max(0,Math.sin(w.ph));if(tw>0.2){const s=S[w.node];star(s.x,s.y,(1+s.d)*tw+0.3,(0.2+s.d*0.6)*tw);}}
+
+    // fliegende Neuronen mit Schweif
+    for(const m of neurons){
+      m.p+=m.sp;
+      if(m.p>=1){m.from=m.to;const nb=adj[m.from];m.to=nb.length?nb[(Math.random()*nb.length)|0]:m.from;m.p=0;m.tr=[];}
+      const A=S[m.from], B=S[m.to];
+      const x=A.x+(B.x-A.x)*m.p, y=A.y+(B.y-A.y)*m.p, d=A.d+(B.d-A.d)*m.p;
+      m.tr.push({x,y});if(m.tr.length>13)m.tr.shift();         // längerer Schweif
+      for(let k=1;k<m.tr.length;k++){
+        const al=(k/m.tr.length)*(0.5+d*0.3);
+        ctx.strokeStyle='rgba(200,236,255,'+al.toFixed(3)+')';ctx.lineWidth=0.6+(k/m.tr.length)*1.1;
+        ctx.beginPath();ctx.moveTo(m.tr[k-1].x,m.tr[k-1].y);ctx.lineTo(m.tr[k].x,m.tr[k].y);ctx.stroke();
+      }
+      star(x,y,1.5+d*1.0,0.85+d*0.15);
     }
     if(!reduced)requestAnimationFrame(frame);
   }
