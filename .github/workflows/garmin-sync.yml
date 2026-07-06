@@ -40,15 +40,18 @@ jobs:
             --out /tmp/garmin-notes \
             --web-json data/garmin.json
 
-      - name: Änderungen hochladen
+      - name: Änderungen hochladen (robust gegen parallele Pushes)
         run: |
           git config user.name "garmin-bot"
           git config user.email "actions@github.com"
-          git add data/garmin.json
-          if git diff --cached --quiet; then
-            echo "Keine Änderungen."
-            exit 0
-          fi
-          git commit -m "Garmin-Update (Cloud) $(date -u '+%Y-%m-%d %H:%M') UTC"
-          # Falls App/Mac zwischenzeitlich gepusht haben: abgleichen und erneut versuchen
-          git push || (git pull --rebase && git push)
+          cp data/garmin.json /tmp/garmin.json
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            cp /tmp/garmin.json data/garmin.json
+            git add data/garmin.json
+            if git diff --cached --quiet; then echo "Keine Änderungen."; exit 0; fi
+            git commit -q -m "Garmin-Update (Cloud) $(date '+%Y-%m-%d %H:%M')"
+            if git push -q origin main; then echo "OK (Versuch $attempt)"; exit 0; fi
+            echo "Kollision, neuer Versuch …"; sleep 3
+          done
