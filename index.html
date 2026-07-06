@@ -211,7 +211,7 @@ textarea{min-height:90px;resize:vertical;}
     <div class="panel" style="padding:10px 8px 4px;overflow:hidden;">
       <div class="nexus-wrap" style="position:relative;height:clamp(250px,48vw,380px);">
         <canvas id="neuralField" style="width:100%;height:100%;display:block;"></canvas>
-        <div style="position:absolute;bottom:10px;left:14px;font-family:var(--font-mono);font-size:8px;letter-spacing:2px;color:var(--muted-soft);">// NEURAL NEXUS</div>
+        <div style="position:absolute;bottom:10px;left:14px;font-family:var(--font-mono);font-size:8px;letter-spacing:2px;color:var(--muted-soft);">// HOLO-GLOBUS</div>
       </div>
     </div>
     <div class="panel">
@@ -1031,52 +1031,56 @@ function startNexus(){
   }
   resize();addEventListener('resize',resize);
 
-  // "Rausgezoomt": deutlich mehr, aber kleinere Knoten — wirkt wie ein weiter Wissens-Kosmos
-  const N=Math.min(90,Math.max(50,Math.floor(innerWidth/6)));
-  const nodes=[];
+  // Holo-Globus: viele Punkte auf einer Kugel (Fibonacci-Verteilung), rotierend,
+  // mit Atmung nach innen und außen.
+  const N=Math.min(700,Math.max(380,Math.floor(innerWidth*1.1)));
+  const pts=[];
   for(let i=0;i<N;i++){
-    nodes.push({
-      x:Math.random()*1,y:Math.random()*1,          // normiert 0..1
-      vx:(Math.random()-.5)*.0010,vy:(Math.random()-.5)*.0010,
-      r:.7+Math.random()*1.6,
-      hub:Math.random()<.11,                          // Hubs = größere "Themen"-Knoten
-      pulse:Math.random()*Math.PI*2
-    });
+    const y=1-(i/(N-1))*2;                    // -1 .. 1
+    const rr=Math.sqrt(Math.max(0,1-y*y));
+    const th=i*2.399963229;                    // goldener Winkel
+    pts.push({x:Math.cos(th)*rr, y:y, z:Math.sin(th)*rr, ph:Math.random()*Math.PI*2});
   }
-  const LINK_R=.11;
+  const TAU=Math.PI*2;
 
   function frame(t){
     ctx.clearRect(0,0,W,H);
-    // Bewegung: sanftes Driften + gelegentliches Neu-Ausrichten (Re-Vernetzung)
-    for(const n of nodes){
-      n.x+=n.vx;n.y+=n.vy;
-      // weiche Ränder
-      if(n.x<.03||n.x>.97)n.vx*=-1;
-      if(n.y<.06||n.y>.94)n.vy*=-1;
-      // leichte Zufallsimpulse → Netz ordnet sich ständig neu
-      if(Math.random()<.004){n.vx=(Math.random()-.5)*.0014;n.vy=(Math.random()-.5)*.0014;}
-      n.pulse+=.02;
-    }
-    // Kanten
-    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
-      const a=nodes[i],b=nodes[j];
-      const dx=(a.x-b.x)*W,dy=(a.y-b.y)*H;
-      const d=Math.hypot(dx,dy),maxd=LINK_R*Math.max(W,H);
-      if(d<maxd){
-        const alpha=(1-d/maxd)*((a.hub||b.hub)?.34:.16);
-        ctx.strokeStyle=`rgba(199,223,225,${alpha.toFixed(3)})`;
-        ctx.lineWidth=(a.hub||b.hub)?.7:.4;
-        ctx.beginPath();ctx.moveTo(a.x*W,a.y*H);ctx.lineTo(b.x*W,b.y*H);ctx.stroke();
+    const cx=W/2, cy=H/2;
+    const baseR=Math.min(W,H)*0.44;
+    const a=t*0.00034;                         // langsame Rotation um die Hochachse
+    const ca=Math.cos(a), sa=Math.sin(a);
+    const breath=1+Math.sin(t*0.0011)*0.15;    // globales Ein-/Ausatmen (nach innen/außen)
+
+    // dezente Längenkreise für Struktur
+    ctx.strokeStyle='rgba(199,223,225,0.05)';ctx.lineWidth=0.6;
+    for(let k=-2;k<=2;k++){
+      const yk=k*0.34;const ringR=Math.sqrt(Math.max(0,1-yk*yk));
+      ctx.beginPath();
+      for(let d=0;d<=48;d++){
+        const ang=d/48*TAU;
+        const x=Math.cos(ang)*ringR, z=Math.sin(ang)*ringR;
+        const xr=x*ca - z*sa;
+        const sx=cx+xr*baseR*breath, sy=cy+yk*baseR*breath;
+        d===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);
       }
+      ctx.stroke();
     }
-    // Knoten
-    for(const n of nodes){
-      const glow=n.hub?4.5:0;
-      const rr=n.r*(n.hub?2.1:1)*(1+Math.sin(n.pulse)*.13);
-      if(glow){ctx.shadowColor='rgba(111,179,217,.8)';ctx.shadowBlur=7;}
-      ctx.fillStyle=n.hub?'rgba(111,179,217,.9)':'rgba(199,223,225,.55)';
-      ctx.beginPath();ctx.arc(n.x*W,n.y*H,rr,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
+
+    // Punkte — jeder atmet zusätzlich individuell nach innen/außen
+    for(const p of pts){
+      const pr=breath*(1+Math.sin(t*0.0017+p.ph)*0.07);
+      const x=p.x*pr, yy=p.y*pr, z=p.z*pr;
+      const xr=x*ca - z*sa;
+      const zr=x*sa + z*ca;
+      const sx=cx+xr*baseR, sy=cy+yy*baseR;
+      const depth=(zr+1)/2;                    // 0 hinten .. 1 vorne
+      const rad=0.5+depth*1.9;
+      const front=depth>0.72;
+      if(front){ctx.shadowColor='rgba(111,179,217,0.7)';ctx.shadowBlur=6*depth;}
+      const col=depth>0.5?'111,179,217':'199,223,225';
+      ctx.fillStyle='rgba('+col+','+(0.12+depth*0.8).toFixed(2)+')';
+      ctx.beginPath();ctx.arc(sx,sy,rad,0,TAU);ctx.fill();
+      if(front)ctx.shadowBlur=0;
     }
     if(!reduced)requestAnimationFrame(frame);
   }
