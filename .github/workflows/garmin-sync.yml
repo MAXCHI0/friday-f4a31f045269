@@ -34,13 +34,22 @@ jobs:
           echo "${{ secrets.GARMIN_TOKEN_B64 }}" | base64 -d | tar -x -C cloud/token
           ls cloud/token >/dev/null
 
-      - name: Garmin-Daten abrufen
+      - name: Garmin-Daten abrufen (mit Wiederholung bei Garmin-Aussetzern)
+        id: garmin
         run: |
-          python cloud/sync_garmin.py --days 3 \
-            --out /tmp/garmin-notes \
-            --web-json data/garmin.json
+          ok=0
+          for attempt in 1 2 3; do
+            if python cloud/sync_garmin.py --days 3 --out /tmp/garmin-notes --web-json data/garmin.json; then
+              ok=1; break
+            fi
+            echo "Garmin-Abruf fehlgeschlagen (Versuch $attempt), warte 30s …"
+            sleep 30
+          done
+          # Kein harter Fehler bei Garmin-Aussetzern — nächster Lauf holt es nach
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
 
       - name: Änderungen hochladen (robust gegen parallele Pushes)
+        if: steps.garmin.outputs.ok == '1'
         run: |
           git config user.name "garmin-bot"
           git config user.email "actions@github.com"
