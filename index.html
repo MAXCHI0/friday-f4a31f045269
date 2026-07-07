@@ -209,7 +209,7 @@ textarea{min-height:90px;resize:vertical;}
   <!-- ============ ÜBERBLICK ============ -->
   <section class="view active" id="view-home">
     <div class="panel" style="padding:10px 8px 4px;overflow:hidden;">
-      <div class="nexus-wrap" style="position:relative;height:clamp(320px,62vw,480px);">
+      <div class="nexus-wrap" style="position:relative;height:clamp(380px,74vw,580px);">
         <canvas id="neuralField" style="width:100%;height:100%;display:block;"></canvas>
         <div style="position:absolute;bottom:10px;left:14px;font-family:var(--font-mono);font-size:8px;letter-spacing:2px;color:var(--muted-soft);">// NEURAL CORE</div>
       </div>
@@ -1034,8 +1034,8 @@ function startNexus(){
   const TAU=Math.PI*2;
   // Dichtes, gehirnförmiges Geflecht (zwei Hälften), innen mit Fäden gefüllt,
   // viele Neuronen mit Schweif fliegen hindurch.
-  const N=Math.min(680,Math.max(360,Math.floor(innerWidth*1.05)));  // Komplexität skaliert mit Bildschirm
-  const K=6;                                                         // Verbindungen pro Knoten
+  const N=Math.min(1200,Math.max(560,Math.floor(innerWidth*1.5)));   // deutlich komplexer, skaliert mit Bildschirm
+  const K=7;                                                         // mehr Verbindungen pro Knoten
   const EL=1.16, WR=0.09, FIS=0.6;                                   // Form: länglich, Windungen, Mittelfurche
 
   function brainPt(){
@@ -1058,7 +1058,7 @@ function startNexus(){
   }
 
   // viele fliegende Neuronen mit Schweif
-  const NEUR=Math.round(N/16);
+  const NEUR=Math.round(N/11);
   const neurons=[];
   for(let i=0;i<NEUR;i++){let a=(Math.random()*N)|0;const b=adj[a].length?adj[a][(Math.random()*adj[a].length)|0]:a;neurons.push({from:a,to:b,p:Math.random(),sp:0.028+Math.random()*0.022,tr:[]});}
   // zusätzlich funkelnde Oberflächen-Neuronen
@@ -1075,7 +1075,7 @@ function startNexus(){
 
   function frame(t){
     ctx.clearRect(0,0,W,H);
-    const cx=W/2, cy=H/2, R=Math.min(W,H)*0.46;      // größer
+    const cx=W/2, cy=H/2, R=Math.min(W,H)*0.48;      // größer
     const a=t*0.00027, ca=Math.cos(a), sa=Math.sin(a);
     const br=1+Math.sin(t*0.0009)*0.06;
 
