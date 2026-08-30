@@ -609,7 +609,9 @@ async function refreshAll(force){
   if(btn)setTimeout(()=>btn.classList.remove('spinning'),500);
 }
 document.getElementById('refreshBtn').addEventListener('click',()=>refreshAll(true));
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAll(false);});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshAll(false);window.__nexusResume&&window.__nexusResume();}});
+// Selbst-Aktualisierung: solange die App offen & sichtbar ist, alle 5 Min frische Daten
+setInterval(()=>{if(document.visibilityState==='visible')refreshAll(false);},300000);
 
 /* Tabs */
 document.querySelectorAll('.tab-pill').forEach(b=>b.addEventListener('click',()=>{
@@ -622,6 +624,8 @@ document.querySelectorAll('.tab-pill').forEach(b=>b.addEventListener('click',()=
   if(b.dataset.view==='garmin'&&window.Chart){
     requestAnimationFrame(()=>{Object.values(Chart.instances).forEach(c=>{try{c.reset();c.update();}catch(e){}});});
   }
+  // Gehirn-Animation nur auf HOME laufen lassen
+  if(b.dataset.view==='home')window.__nexusResume&&window.__nexusResume();
 }));
 
 /* ============ Garmin-Daten ============ */
@@ -1319,17 +1323,19 @@ function startNexus(){
   const ctx=cv.getContext('2d');
   let W,H,dpr;
   function resize(){
-    dpr=Math.min(devicePixelRatio||1,2);
+    dpr=Math.min(devicePixelRatio||1,1.5);          // gedeckelt → flüssiger auf Handys
     W=cv.clientWidth;H=cv.clientHeight;
     cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   resize();addEventListener('resize',resize);
 
   const TAU=Math.PI*2;
-  // Dichtes, gehirnförmiges Geflecht (zwei Hälften), innen mit Fäden gefüllt,
-  // viele Neuronen mit Schweif fliegen hindurch.
-  const N=Math.min(1200,Math.max(560,Math.floor(innerWidth*1.5)));   // deutlich komplexer, skaliert mit Bildschirm
-  const K=7;                                                         // mehr Verbindungen pro Knoten
+  // Dichtes, gehirnförmiges Geflecht (zwei Hälften), innen mit Fäden gefüllt.
+  // Komplexität an die Geräteleistung anpassen: Handys leichter, große Screens dichter.
+  const mob=innerWidth<700||matchMedia('(pointer:coarse)').matches;
+  const N=mob?Math.min(520,Math.max(320,Math.floor(innerWidth*1.15)))
+             :Math.min(1100,Math.max(560,Math.floor(innerWidth*1.3)));
+  const K=mob?5:7;                                                    // Verbindungen pro Knoten
   const EL=1.16, WR=0.09, FIS=0.6;                                   // Form: länglich, Windungen, Mittelfurche
 
   function brainPt(){
@@ -1411,9 +1417,14 @@ function startNexus(){
       }
       star(x,y,1.5+d*1.0,0.85+d*0.15);
     }
-    if(!reduced)requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  // Läuft nur, wenn HOME sichtbar & App im Vordergrund → spart Akku/CPU, bleibt flüssig
+  let running=false;
+  function active(){return document.visibilityState==='visible' && document.getElementById('view-home')?.classList.contains('active');}
+  function loop(t){ if(reduced){frame(t);return;} if(!active()){running=false;return;} frame(t); requestAnimationFrame(loop); }
+  function resume(){ if(running||reduced||!active())return; running=true; requestAnimationFrame(loop); }
+  window.__nexusResume=resume;
+  if(reduced){requestAnimationFrame(frame);} else {resume();}
 }
 
 /* ============ Start ============ */
