@@ -183,6 +183,18 @@ textarea{min-height:90px;resize:vertical;}
 .news .nsum{font-size:11.5px;line-height:1.4;color:var(--muted);margin-top:4px;}
 .news.isnew .ntitle::before{content:'●';color:var(--gold);font-size:9px;margin-right:5px;vertical-align:middle;}
 .news:active .ntitle,.news:hover .ntitle{color:var(--accent);}
+/* Fazit / Analyse */
+.verdict{font-family:var(--font-display);font-style:italic;font-size:17px;line-height:1.45;color:var(--ink);margin-bottom:16px;}
+.ins{display:flex;gap:11px;padding:12px 2px;border-bottom:1px solid var(--hairline-soft);align-items:flex-start;}
+.ins:last-of-type{border-bottom:none;}
+.ins .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.ins .dot.good{background:var(--live);box-shadow:0 0 7px var(--live);}
+.ins .dot.warn{background:var(--gold);box-shadow:0 0 7px var(--gold);}
+.ins .dot.alert{background:var(--rose);box-shadow:0 0 7px var(--rose);}
+.ins .it{flex:1;font-size:13px;line-height:1.5;color:var(--muted);}
+.ins .it b{color:var(--ink);font-weight:600;}
+.ins .it .m{color:var(--accent);font-weight:600;}
+.insdisc{font-family:var(--font-mono);font-size:8.5px;color:var(--muted-soft);margin-top:14px;line-height:1.55;}
 .supp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline-soft);}
 .supp:last-child{border-bottom:none;}
 .supp .sn{font-size:14px;font-weight:600;}
@@ -270,6 +282,12 @@ textarea{min-height:90px;resize:vertical;}
 
   <!-- ============ GARMIN ============ -->
   <section class="view" id="view-garmin">
+    <div class="panel">
+      <h2>Fazit &amp; Analyse</h2>
+      <div class="sub">Automatische Auswertung deiner Werte</div>
+      <span class="badge" style="color:var(--gold);background:var(--gold-dim);">KI-ANALYSE</span>
+      <div id="insightArea"><div class="empty">Werte werden ausgewertet …</div></div>
+    </div>
     <div class="panel">
       <h2>Fitness &amp; Recovery</h2>
       <div class="sub">Garmin Connect — letzte 30 Tage, pro Datenart ein Diagramm</div>
@@ -663,13 +681,86 @@ function card(id,title,now,unit,note){
 }
 function latest(days,key){for(let i=days.length-1;i>=0;i--){const v=G.wellness[days[i]][key];if(v!=null)return v;}return null;}
 
+/* ============ Fazit / Gesundheits-Analyse ============ */
+function renderInsight(){
+  const el=$('#insightArea');if(!el||!G||!G.wellness){return;}
+  const days=Object.keys(G.wellness).sort();
+  const val=(d,k)=>G.wellness[d][k];
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const all=k=>days.map(d=>val(d,k)).filter(v=>v!=null);
+  const lastN=(k,n)=>{const a=[];for(let i=days.length-1;i>=0&&a.length<n;i--){const v=val(days[i],k);if(v!=null)a.push(v);}return a;};
+  const r=(x,d=0)=>x==null?'–':(+x).toFixed(d);
+  const ins=[];
+
+  // Ruhepuls
+  const rhr7=avg(lastN('restingHeartRate',7)), rhr30=avg(all('restingHeartRate'));
+  if(rhr7!=null&&rhr30!=null){
+    const diff=rhr7-rhr30;
+    if(diff>=5) ins.push({lv:'alert',t:`Dein Ruhepuls ist mit <span class="m">${r(rhr7)} bpm</span> zuletzt <b>erstaunlich hoch</b> — rund ${r(diff)} bpm über deinem 30-Tage-Schnitt (${r(rhr30)}). Das ist oft ein Warnsignal für unzureichende Erholung, hohen Stress, zu wenig Schlaf, Alkohol oder einen beginnenden Infekt. Nimm dir bewusst Ruhe.`});
+    else if(diff>=2.5) ins.push({lv:'warn',t:`Dein Ruhepuls liegt zuletzt bei <span class="m">${r(rhr7)} bpm</span>, etwas über deinem Schnitt (${r(rhr30)}). Beobachte, ob Schlaf und Stress dahinterstecken.`});
+    else if(diff<=-2) ins.push({lv:'good',t:`Dein Ruhepuls ist mit <span class="m">${r(rhr7)} bpm</span> niedriger als dein Schnitt — ein gutes Zeichen für Erholung und Fitness.`});
+    else ins.push({lv:'good',t:`Dein Ruhepuls ist stabil bei <span class="m">${r(rhr7)} bpm</span> — im Rahmen deines Normalwerts.`});
+  }
+
+  // HRV vs. Baseline
+  const hrv=lastN('hrvLastNightAvg',3), hrvNow=hrv.length?avg(hrv):null;
+  const bLow=latest(days,'hrvBaselineLow'), bHigh=latest(days,'hrvBaselineHigh');
+  if(hrvNow!=null&&bLow!=null&&bHigh!=null){
+    if(hrvNow<bLow) ins.push({lv:'warn',t:`Deine <b>HRV</b> liegt mit <span class="m">${r(hrvNow)} ms</span> unter deiner persönlichen Baseline (${r(bLow)}–${r(bHigh)} ms). Dein Nervensystem ist noch nicht voll erholt — leichtes Training und guter Schlaf helfen jetzt mehr als harte Einheiten.`});
+    else if(hrvNow>bHigh) ins.push({lv:'good',t:`Deine <b>HRV</b> ist mit <span class="m">${r(hrvNow)} ms</span> über deiner Baseline — sehr gute Erholung, dein Körper ist belastbar.`});
+    else ins.push({lv:'good',t:`Deine <b>HRV</b> liegt mit <span class="m">${r(hrvNow)} ms</span> im normalen Bereich deiner Baseline — solide Erholung.`});
+  }
+
+  // Schlaf
+  const slp=lastN('sleepSeconds',7).map(s=>s/3600), slp7=avg(slp);
+  const scr7=avg(lastN('sleepScore',7));
+  if(slp7!=null){
+    if(slp7<6.5) ins.push({lv:'alert',t:`Du schläfst im Schnitt nur <span class="m">${r(slp7,1)} h</span> pro Nacht — deutlich unter den empfohlenen 7–9 h. Chronischer Schlafmangel drückt HRV, Ruhepuls, Training Readiness und Konzentration. Der größte Hebel für deine Gesundheit liegt hier.`});
+    else if(slp7<7.2) ins.push({lv:'warn',t:`Dein Schlaf liegt bei <span class="m">${r(slp7,1)} h</span> im Schnitt${scr7!=null?` (Score Ø ${r(scr7)})`:''} — knapp unter dem Optimum. Etwas früher ins Bett würde spürbar helfen.`});
+    else ins.push({lv:'good',t:`Dein Schlaf ist mit <span class="m">${r(slp7,1)} h</span> im Schnitt${scr7!=null?` (Score Ø ${r(scr7)})`:''} gut — weiter so.`});
+  }
+
+  // Training Readiness
+  const tr7=avg(lastN('trainingReadiness',7));
+  if(tr7!=null){
+    if(tr7<40) ins.push({lv:'warn',t:`Deine <b>Training Readiness</b> ist mit Ø <span class="m">${r(tr7)}/100</span> niedrig — dein Körper meldet Erholungsbedarf. Setz diese Woche eher auf lockere statt intensive Einheiten.`});
+    else if(tr7>=65) ins.push({lv:'good',t:`Deine <b>Training Readiness</b> ist mit Ø <span class="m">${r(tr7)}/100</span> hoch — gute Phase, um intensiver zu trainieren und Fortschritt zu machen.`});
+    else ins.push({lv:'good',t:`Deine <b>Training Readiness</b> liegt bei Ø <span class="m">${r(tr7)}/100</span> — solide Basis für moderates Training.`});
+  }
+
+  // Stress
+  const st7=avg(lastN('averageStressLevel',7));
+  if(st7!=null){
+    if(st7>=50) ins.push({lv:'warn',t:`Dein durchschnittlicher <b>Stresswert</b> ist mit <span class="m">${r(st7)}/100</span> erhöht. Bewusste Pausen, Atemübungen oder ein Spaziergang senken die Belastung spürbar.`});
+    else if(st7<=30) ins.push({lv:'good',t:`Dein <b>Stresslevel</b> ist mit Ø <span class="m">${r(st7)}/100</span> angenehm niedrig — gute Balance.`});
+  }
+
+  // Zusammenhang Schlaf ↔ Readiness
+  if(slp7!=null&&tr7!=null&&slp7<7&&tr7<50){
+    ins.push({lv:'warn',t:`Der Zusammenhang ist deutlich: <b>weniger Schlaf → niedrigere Readiness</b>. Mehr Schlaf ist gerade dein direktester Hebel, um dich leistungsfähiger zu fühlen.`});
+  }
+
+  if(!ins.length){el.innerHTML='<div class="empty">Noch zu wenige Werte für eine Analyse.</div>';return;}
+
+  const alerts=ins.filter(i=>i.lv==='alert').length, warns=ins.filter(i=>i.lv==='warn').length;
+  let verdict;
+  if(alerts>0) verdict='Achtung — ein paar Werte brauchen gerade deine Aufmerksamkeit.';
+  else if(warns>=2) verdict='Insgesamt solide, aber bei deiner Erholung gibt es Baustellen.';
+  else if(warns===1) verdict='Rundum gut — nur ein Punkt lohnt einen Blick.';
+  else verdict='Starke Phase — deine Erholungswerte sehen durchweg gut aus.';
+
+  el.innerHTML=`<div class="verdict">${verdict}</div>`
+    +ins.map(i=>`<div class="ins"><span class="dot ${i.lv}"></span><div class="it">${i.t}</div></div>`).join('')
+    +`<div class="insdisc">Automatische Auswertung deiner Garmin-Werte (kein medizinischer Rat). Bei anhaltenden Auffälligkeiten ärztlich abklären.</div>`;
+}
+
 async function loadGarmin(){
   try{
     const r=await fetch('data/garmin.json?v='+Date.now());
     G=await r.json();
   }catch(e){$('#metaUpdated').textContent='Garmin-Daten nicht erreichbar';return;}
   noteFreshness('garmin',G.generated);
-  renderToday();renderCharts();renderActivities();renderMacros();
+  renderToday();renderInsight();renderCharts();renderActivities();renderMacros();
 }
 
 // "Stand" = die jüngste Aktualisierung aus allen Quellen (Garmin-Cloud & Mac-Sync)
