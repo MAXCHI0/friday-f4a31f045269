@@ -15,23 +15,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400;1,9..144,500&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 :root{
   color-scheme:dark;
-  --void:#000; --void-2:#0a0a0b;
-  --glass:rgba(255,255,255,.03); --glass-2:rgba(255,255,255,.045);
-  --hairline:rgba(255,255,255,.11); --hairline-soft:rgba(255,255,255,.06);
-  --ink:#eceae4; --muted:#888c92; --muted-soft:#5f6368;
-  --accent:#c7dfe1; --accent-soft:rgba(199,223,225,.22); --accent-dim:rgba(199,223,225,.10);
-  --gold:#6fb3d9; --gold-soft:rgba(111,179,217,.24); --gold-dim:rgba(111,179,217,.10);
-  --rose:#b98a86; --live:#7fd99a; --live-dim:rgba(127,217,154,.14);
-  --deep:#3d6bb3; --rem:#8f7fd9; --light-sleep:#5fa8d9; --wake:#b98a86;
+  --void:#05080f; --void-2:#0a1424;
+  --glass:rgba(120,165,235,.045); --glass-2:rgba(120,165,235,.075);
+  --hairline:rgba(120,165,235,.18); --hairline-soft:rgba(120,165,235,.10);
+  --ink:#eaf1fb; --muted:#8296b5; --muted-soft:#5f76a0;
+  --accent:#8fb4ff; --accent-soft:rgba(143,180,255,.24); --accent-dim:rgba(143,180,255,.10);
+  --gold:#6aa8ff; --gold-soft:rgba(106,168,255,.28); --gold-dim:rgba(106,168,255,.12);
+  --rose:#d99fb0; --live:#6fe3c0; --live-dim:rgba(111,227,192,.14);
+  --deep:#3d6bb3; --rem:#9d8fe0; --light-sleep:#6aa8ff; --wake:#d99fb0;
   --font-display:'Fraunces',serif; --font-body:'Manrope',sans-serif; --font-mono:'IBM Plex Mono',monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;background:var(--void);}
 body{
   background:
-    radial-gradient(ellipse 900px 500px at 50% -8%, rgba(199,223,225,.055) 0%, transparent 60%),
-    radial-gradient(ellipse 700px 400px at 90% 100%, rgba(111,179,217,.05) 0%, transparent 60%),
+    radial-gradient(130% 70% at 50% -8%, #123061 0%, rgba(18,48,97,0) 55%),
+    radial-gradient(ellipse 700px 460px at 88% 104%, rgba(106,168,255,.08) 0%, transparent 60%),
     var(--void);
+  background-attachment:fixed;
   color:var(--ink); font-family:var(--font-body); min-height:100vh;
   padding:calc(18px + env(safe-area-inset-top)) 14px calc(90px + env(safe-area-inset-bottom));
   letter-spacing:.1px;
@@ -703,7 +704,7 @@ function renderCharts(){
   /* HRV mit Baseline-Band */
   const hc=card('chHrv','HRV über Nacht',latest(days,'hrvLastNightAvg'),'ms','Band = persönliche Baseline');
   new Chart(hc,{data:{labels,datasets:[
-    {type:'line',label:'Baseline hoch',data:g('hrvBaselineHigh'),borderWidth:0,pointRadius:0,fill:'+1',backgroundColor:'rgba(111,179,217,.12)'},
+    {type:'line',label:'Baseline hoch',data:g('hrvBaselineHigh'),borderWidth:0,pointRadius:0,fill:'+1',backgroundColor:'rgba(106,168,255,.12)'},
     {type:'line',label:'Baseline tief',data:g('hrvBaselineLow'),borderWidth:0,pointRadius:0},
     {type:'line',label:'HRV',data:g('hrvLastNightAvg'),borderColor:GOLD,borderWidth:1.8,pointRadius:2,pointBackgroundColor:GOLD}
   ]},options:baseOpts()});
@@ -722,7 +723,7 @@ function renderCharts(){
 
   /* Stress */
   new Chart(card('chStress','Stress (Tages-Ø)',latest(days,'averageStressLevel'),'/100'),{data:{labels,datasets:[
-    {type:'bar',data:g('averageStressLevel'),backgroundColor:'rgba(111,179,217,.45)'},
+    {type:'bar',data:g('averageStressLevel'),backgroundColor:'rgba(106,168,255,.45)'},
     {type:'line',data:g('maxStressLevel'),borderColor:ROSE,borderWidth:1,pointRadius:0,borderDash:[3,3]}
   ]},options:baseOpts()});
 
@@ -734,7 +735,7 @@ function renderCharts(){
   /* Schritte */
   const stepGoal=latest(days,'dailyStepGoal');
   new Chart(card('chSteps','Schritte',latest(days,'totalSteps'),'',stepGoal?('Linie = Tagesziel '+stepGoal):''),{data:{labels,datasets:[
-    {type:'bar',data:g('totalSteps'),backgroundColor:'rgba(199,223,225,.4)'},
+    {type:'bar',data:g('totalSteps'),backgroundColor:'rgba(143,180,255,.4)'},
     ...(stepGoal?[{type:'line',data:days.map(()=>stepGoal),borderColor:css('--muted'),borderWidth:1,pointRadius:0,borderDash:[4,4]}]:[])
   ]},options:baseOpts()});
 
@@ -746,7 +747,7 @@ function renderCharts(){
 
   /* Intensitätsminuten */
   new Chart(card('chIM','Intensitätsminuten',(()=>{const m=latest(days,'moderateIntensityMinutes'),v=latest(days,'vigorousIntensityMinutes');return (m||0)+(v||0)*2;})(),'/Wo-Punkte','Moderat + 2× Intensiv'),{data:{labels,datasets:[
-    {type:'bar',label:'Moderat',data:g('moderateIntensityMinutes'),backgroundColor:'rgba(111,179,217,.5)',stack:'i'},
+    {type:'bar',label:'Moderat',data:g('moderateIntensityMinutes'),backgroundColor:'rgba(106,168,255,.5)',stack:'i'},
     {type:'bar',label:'Intensiv',data:g('vigorousIntensityMinutes'),backgroundColor:'rgba(127,217,154,.55)',stack:'i'}
   ]},options:baseOpts({scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:6}},y:{stacked:true,grid:{color:'rgba(255,255,255,.04)'}}}})});
 
@@ -776,7 +777,7 @@ function renderCharts(){
   const thisWk=wkKeys.length?wk[wkKeys[wkKeys.length-1]]:0;
   $('#weekDist').innerHTML=(thisWk/1000).toFixed(1)+'<small>km diese Woche</small>';
   new Chart($('#chWeekDist'),{data:{labels:wkKeys.map(k=>'KW ab '+fmtDay(k)),datasets:[
-    {type:'bar',data:wkKeys.map(k=>+(wk[k]/1000).toFixed(2)),backgroundColor:'rgba(199,223,225,.45)'}
+    {type:'bar',data:wkKeys.map(k=>+(wk[k]/1000).toFixed(2)),backgroundColor:'rgba(143,180,255,.45)'}
   ]},options:baseOpts()});
 }
 
@@ -1199,13 +1200,14 @@ function startNexus(){
     // Geflecht (Tiefe: vorne kräftig blau, hinten blass)
     for(let e=0;e<edges.length;e++){
       const A=S[edges[e][0]], B=S[edges[e][1]], dep=(A.d+B.d)/2;
-      const cr=(127+73*(1-dep))|0, cg=(208+7*(1-dep))|0;
-      ctx.strokeStyle='rgba('+cr+','+cg+',225,'+(0.045+dep*0.26).toFixed(3)+')';
+      // Juwelenblau, vorne kräftig → hinten dunkler
+      const cr=(60+46*dep)|0, cg=(110+58*dep)|0, cb=(190+65*dep)|0;
+      ctx.strokeStyle='rgba('+cr+','+cg+','+cb+','+(0.05+dep*0.30).toFixed(3)+')';
       ctx.lineWidth=0.34;
       ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();
     }
     // Knoten
-    for(let i=0;i<N;i++){const s=S[i];ctx.fillStyle='rgba(199,223,225,'+(0.07+s.d*0.5).toFixed(2)+')';ctx.beginPath();ctx.arc(s.x,s.y,0.4+s.d*1.1,0,TAU);ctx.fill();}
+    for(let i=0;i<N;i++){const s=S[i];ctx.fillStyle='rgba(143,180,255,'+(0.08+s.d*0.55).toFixed(2)+')';ctx.beginPath();ctx.arc(s.x,s.y,0.4+s.d*1.1,0,TAU);ctx.fill();}
 
     // funkelnde Oberflächen-Neuronen
     for(const w of twk){w.ph+=w.sp;const tw=Math.max(0,Math.sin(w.ph));if(tw>0.2){const s=S[w.node];star(s.x,s.y,(1+s.d)*tw+0.3,(0.2+s.d*0.6)*tw);}}

@@ -1,4 +1,4 @@
-const SHELL = 'friday-shell-v19';
+const SHELL = 'friday-shell-v20';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(['.', 'index.html', 'manifest.webmanifest'])));
