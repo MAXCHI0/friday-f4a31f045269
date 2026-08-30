@@ -1268,13 +1268,13 @@ async function renderProposals(){
     }
     return `<div class="prop"><div class="pt">${esc(p.title)}</div>
       <div class="pm">Erkannt: <b>${esc(p.hint)}</b> · <b>${when}</b> · aus Mail vom ${p.mailDate}</div>
-      <div class="row"><button class="btn ok" data-id="${p.id}" data-a="accepted">✓ IN KALENDER</button>
-      <button class="btn no" data-id="${p.id}" data-a="rejected">✕ ABLEHNEN</button></div></div>`;
+      <div class="row"><button class="btn ok" data-id="${esc(p.id)}" data-a="accepted" data-title="${esc(p.title)}" data-date="${esc(p.date)}" data-time="${esc(p.time||'')}">✓ IN KALENDER</button>
+      <button class="btn no" data-id="${esc(p.id)}" data-a="rejected" data-title="${esc(p.title)}" data-date="${esc(p.date)}" data-time="${esc(p.time||'')}">✕ ABLEHNEN</button></div></div>`;
   }).join('');
+  // Daten direkt aus dem Knopf lesen → robust, auch wenn die Liste zwischenzeitlich neu geladen wurde
   $('#proposalArea').querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>{
-    const p=PROPOSALS.find(x=>x.id===b.dataset.id);
     const all=store.get('friday_decisions',{});
-    all[p.id]={status:b.dataset.a,title:p.title,date:p.date,time:p.time,decidedAt:new Date().toISOString()};
+    all[b.dataset.id]={status:b.dataset.a,title:b.dataset.title,date:b.dataset.date,time:b.dataset.time||null,decidedAt:new Date().toISOString()};
     store.set('friday_decisions',all);
     renderProposals();
   }));
