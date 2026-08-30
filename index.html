@@ -194,6 +194,8 @@ textarea{min-height:90px;resize:vertical;}
 .ins .it{flex:1;font-size:13px;line-height:1.5;color:var(--muted);}
 .ins .it b{color:var(--ink);font-weight:600;}
 .ins .it .m{color:var(--accent);font-weight:600;}
+.inssec{font-family:var(--font-mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:20px 0 4px;padding-bottom:6px;border-bottom:1px solid var(--hairline-soft);}
+.inssec:first-of-type{margin-top:4px;}
 .insdisc{font-family:var(--font-mono);font-size:8.5px;color:var(--muted-soft);margin-top:14px;line-height:1.55;}
 .supp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline-soft);}
 .supp:last-child{border-bottom:none;}
@@ -687,71 +689,123 @@ function renderInsight(){
   const days=Object.keys(G.wellness).sort();
   const val=(d,k)=>G.wellness[d][k];
   const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
-  const all=k=>days.map(d=>val(d,k)).filter(v=>v!=null);
-  const lastN=(k,n)=>{const a=[];for(let i=days.length-1;i>=0&&a.length<n;i--){const v=val(days[i],k);if(v!=null)a.push(v);}return a;};
+  const ord=k=>days.map(d=>val(d,k)).filter(v=>v!=null);
+  const lastN=(k,n)=>ord(k).slice(-n);
   const r=(x,d=0)=>x==null?'–':(+x).toFixed(d);
-  const ins=[];
+  // Trend: Schnitt der letzten n Tage vs. der n davor
+  function trend(k,n){const s=ord(k);if(s.length<n+3)return null;const rec=avg(s.slice(-n)),pr=avg(s.slice(Math.max(0,s.length-2*n),s.length-n));if(pr==null)return null;return{rec,pr,d:rec-pr};}
+  function tArrow(tr,inv){if(!tr)return '';const d=tr.d;if(Math.abs(d)<(inv?0.5:0.5))return ' · <b>→ stabil</b>';const better=inv?d<0:d>0;return ` · <b>${d>0?'↑':'↓'} ${d>0?'steigend':'fallend'}</b>`;}
+  const S=[]; // Abschnitte: {title, items:[{lv,t}]}
+  const body=(G=>{try{return JSON.parse(localStorage.getItem('friday_body'))||{}}catch(e){return{}}})();
 
+  /* ---------- ERHOLUNG ---------- */
+  const erh=[];
   // Ruhepuls
-  const rhr7=avg(lastN('restingHeartRate',7)), rhr30=avg(all('restingHeartRate'));
+  const rhr7=avg(lastN('restingHeartRate',7)), rhr30=avg(ord('restingHeartRate')), rhrT=trend('restingHeartRate',7);
   if(rhr7!=null&&rhr30!=null){
     const diff=rhr7-rhr30;
-    if(diff>=5) ins.push({lv:'alert',t:`Dein Ruhepuls ist mit <span class="m">${r(rhr7)} bpm</span> zuletzt <b>erstaunlich hoch</b> — rund ${r(diff)} bpm über deinem 30-Tage-Schnitt (${r(rhr30)}). Das ist oft ein Warnsignal für unzureichende Erholung, hohen Stress, zu wenig Schlaf, Alkohol oder einen beginnenden Infekt. Nimm dir bewusst Ruhe.`});
-    else if(diff>=2.5) ins.push({lv:'warn',t:`Dein Ruhepuls liegt zuletzt bei <span class="m">${r(rhr7)} bpm</span>, etwas über deinem Schnitt (${r(rhr30)}). Beobachte, ob Schlaf und Stress dahinterstecken.`});
-    else if(diff<=-2) ins.push({lv:'good',t:`Dein Ruhepuls ist mit <span class="m">${r(rhr7)} bpm</span> niedriger als dein Schnitt — ein gutes Zeichen für Erholung und Fitness.`});
-    else ins.push({lv:'good',t:`Dein Ruhepuls ist stabil bei <span class="m">${r(rhr7)} bpm</span> — im Rahmen deines Normalwerts.`});
+    const base=`Ruhepuls Ø <span class="m">${r(rhr7)} bpm</span> (7 Tage)${tArrow(rhrT,true)}. `;
+    if(diff>=5) erh.push({lv:'alert',t:base+`Das liegt <b>${r(diff)} bpm über</b> deinem Monatsschnitt (${r(rhr30)}) — ein deutlich erhöhter Ruhepuls. Der Körper braucht mehr Energie zur Grundregeneration: typische Ursachen sind Schlafmangel, hoher Stress, Alkohol, Übertraining oder ein beginnender Infekt. Ein niedriger Ruhepuls ist dagegen ein Marker für gute Ausdauerfitness und Erholung. <b>Empfehlung:</b> 1–2 ruhige Tage, früh schlafen, viel trinken.`});
+    else if(diff>=2.5) erh.push({lv:'warn',t:base+`Etwas über deinem Monatsschnitt (${r(rhr30)}). Leicht erhöht — meist Folge von zu wenig oder unruhigem Schlaf bzw. Stress am Vortag. Beobachte den Verlauf.`});
+    else if(diff<=-2) erh.push({lv:'good',t:base+`Unter deinem Monatsschnitt (${r(rhr30)}) — ein starkes Zeichen: dein Herz arbeitet ökonomischer, Erholung und Ausdauerbasis stimmen.`});
+    else erh.push({lv:'good',t:base+`Im Rahmen deines Normalwerts (${r(rhr30)}) — stabile Grunderholung.`});
   }
-
-  // HRV vs. Baseline
-  const hrv=lastN('hrvLastNightAvg',3), hrvNow=hrv.length?avg(hrv):null;
-  const bLow=latest(days,'hrvBaselineLow'), bHigh=latest(days,'hrvBaselineHigh');
-  if(hrvNow!=null&&bLow!=null&&bHigh!=null){
-    if(hrvNow<bLow) ins.push({lv:'warn',t:`Deine <b>HRV</b> liegt mit <span class="m">${r(hrvNow)} ms</span> unter deiner persönlichen Baseline (${r(bLow)}–${r(bHigh)} ms). Dein Nervensystem ist noch nicht voll erholt — leichtes Training und guter Schlaf helfen jetzt mehr als harte Einheiten.`});
-    else if(hrvNow>bHigh) ins.push({lv:'good',t:`Deine <b>HRV</b> ist mit <span class="m">${r(hrvNow)} ms</span> über deiner Baseline — sehr gute Erholung, dein Körper ist belastbar.`});
-    else ins.push({lv:'good',t:`Deine <b>HRV</b> liegt mit <span class="m">${r(hrvNow)} ms</span> im normalen Bereich deiner Baseline — solide Erholung.`});
+  // HRV
+  const hrvNow=avg(lastN('hrvLastNightAvg',3)), bLow=latest(days,'hrvBaselineLow'), bHigh=latest(days,'hrvBaselineHigh'), hrvT=trend('hrvLastNightAvg',7);
+  if(hrvNow!=null){
+    const bandTxt=(bLow!=null&&bHigh!=null)?` (Baseline ${r(bLow)}–${r(bHigh)} ms)`:'';
+    const base=`HRV Ø <span class="m">${r(hrvNow)} ms</span>${bandTxt}${tArrow(hrvT)}. `;
+    const expl='Die Herzratenvariabilität misst den Abstand zwischen den Herzschlägen und spiegelt dein vegetatives Nervensystem: hohe Werte = starker Parasympathikus = gute Erholung. ';
+    if(bLow!=null&&hrvNow<bLow) erh.push({lv:'warn',t:base+expl+`Aktuell <b>unter</b> deiner Baseline — dein Körper steht noch unter Restbelastung. Setz auf Schlaf, Spaziergänge und lockeres Training statt harter Reize.`});
+    else if(bHigh!=null&&hrvNow>bHigh) erh.push({lv:'good',t:base+expl+`Aktuell <b>über</b> deiner Baseline — sehr gute Erholung, dein System ist belastbar und bereit für intensivere Einheiten.`});
+    else erh.push({lv:'good',t:base+expl+`Im normalen Bereich deiner Baseline — ausgeglichene Erholung.`});
   }
-
-  // Schlaf
-  const slp=lastN('sleepSeconds',7).map(s=>s/3600), slp7=avg(slp);
-  const scr7=avg(lastN('sleepScore',7));
+  // Schlaf gesamt
+  const slp7=avg(lastN('sleepSeconds',7).map(s=>s/3600)), scr7=avg(lastN('sleepScore',7)), slpT=trend('sleepSeconds',7);
   if(slp7!=null){
-    if(slp7<6.5) ins.push({lv:'alert',t:`Du schläfst im Schnitt nur <span class="m">${r(slp7,1)} h</span> pro Nacht — deutlich unter den empfohlenen 7–9 h. Chronischer Schlafmangel drückt HRV, Ruhepuls, Training Readiness und Konzentration. Der größte Hebel für deine Gesundheit liegt hier.`});
-    else if(slp7<7.2) ins.push({lv:'warn',t:`Dein Schlaf liegt bei <span class="m">${r(slp7,1)} h</span> im Schnitt${scr7!=null?` (Score Ø ${r(scr7)})`:''} — knapp unter dem Optimum. Etwas früher ins Bett würde spürbar helfen.`});
-    else ins.push({lv:'good',t:`Dein Schlaf ist mit <span class="m">${r(slp7,1)} h</span> im Schnitt${scr7!=null?` (Score Ø ${r(scr7)})`:''} gut — weiter so.`});
+    const base=`Schlaf Ø <span class="m">${r(slp7,1)} h</span>${scr7!=null?` · Score ${r(scr7)}`:''}${slpT?` · <b>${slpT.d>0?'↑':(slpT.d<0?'↓':'→')} ${(slpT.d/3600>0?'+':'')}${r(slpT.d/3600,1)} h</b> vs. Vorwoche`:''}. `;
+    if(slp7<6.5) erh.push({lv:'alert',t:base+`Deutlich unter den empfohlenen 7–9 h. Schlaf ist die Zeit, in der Wachstumshormone ausgeschüttet, Muskeln repariert und Gelerntes gefestigt werden. Dauerhaftes Defizit hebt Ruhepuls & Stress, senkt HRV, Readiness und Konzentration. <b>Das ist aktuell dein größter Gesundheits-Hebel.</b>`});
+    else if(slp7<7.2) erh.push({lv:'warn',t:base+`Knapp unter dem Optimum. 30–45 Min früher ins Bett würden HRV und Readiness spürbar heben.`});
+    else erh.push({lv:'good',t:base+`Im guten Bereich — deine Regenerationsbasis stimmt.`});
   }
+  // Schlafphasen
+  const deep7=avg(lastN('deepSleepSeconds',7)), rem7=avg(lastN('remSleepSeconds',7)), tot7=avg(lastN('sleepSeconds',7));
+  if(deep7!=null&&rem7!=null&&tot7){
+    const dp=deep7/tot7*100, rp=rem7/tot7*100;
+    const base=`Schlafphasen: <span class="m">${r(dp)}%</span> Tief · <span class="m">${r(rp)}%</span> REM. `;
+    if(dp<13) erh.push({lv:'warn',t:base+`Der Tiefschlaf (ideal ~13–23%) ist knapp — genau er treibt körperliche Regeneration und Immunsystem. Kühle, dunkle Räume, kein Alkohol und feste Zeiten fördern ihn.`});
+    else if(rp<18) erh.push({lv:'warn',t:base+`Der REM-Anteil (ideal ~20–25%) ist niedrig — REM stärkt Gedächtnis und mentale Erholung und leidet besonders unter spätem Alkohol und zu kurzem Schlaf.`});
+    else erh.push({lv:'good',t:base+`Tief- und REM-Anteil liegen im gesunden Bereich — erholsame Schlafarchitektur.`});
+  }
+  // Body Battery
+  const bbHigh=avg(lastN('bodyBatteryHighestValue',7)), bbLow=avg(lastN('bodyBatteryLowestValue',7));
+  if(bbHigh!=null){
+    const base=`Body Battery Ø-Spitze <span class="m">${r(bbHigh)}</span>${bbLow!=null?` / Tief ${r(bbLow)}`:''}. `;
+    if(bbHigh<60) erh.push({lv:'warn',t:base+`Dein Energiespeicher lädt tagsüber nicht mehr voll auf — ein Zeichen, dass Erholung (v.a. Schlaf) und Belastung aus der Balance sind.`});
+    else erh.push({lv:'good',t:base+`Dein Energiespeicher lädt gut auf — Belastung und Erholung sind im Gleichgewicht.`});
+  }
+  if(erh.length)S.push({title:'Erholung',items:erh});
 
-  // Training Readiness
-  const tr7=avg(lastN('trainingReadiness',7));
+  /* ---------- BELASTUNG & TRAINING ---------- */
+  const bel=[];
+  const tr7=avg(lastN('trainingReadiness',7)), trT=trend('trainingReadiness',7);
   if(tr7!=null){
-    if(tr7<40) ins.push({lv:'warn',t:`Deine <b>Training Readiness</b> ist mit Ø <span class="m">${r(tr7)}/100</span> niedrig — dein Körper meldet Erholungsbedarf. Setz diese Woche eher auf lockere statt intensive Einheiten.`});
-    else if(tr7>=65) ins.push({lv:'good',t:`Deine <b>Training Readiness</b> ist mit Ø <span class="m">${r(tr7)}/100</span> hoch — gute Phase, um intensiver zu trainieren und Fortschritt zu machen.`});
-    else ins.push({lv:'good',t:`Deine <b>Training Readiness</b> liegt bei Ø <span class="m">${r(tr7)}/100</span> — solide Basis für moderates Training.`});
+    const base=`Training Readiness Ø <span class="m">${r(tr7)}/100</span>${tArrow(trT)}. `;
+    if(tr7<40) bel.push({lv:'warn',t:base+`Niedrig — Garmin bündelt hier Schlaf, HRV, Ruhepuls und Vorbelastung. Dein Körper meldet Erholungsbedarf: lockere Einheiten (Zone 2, Schwimmen ruhig) bringen jetzt mehr als harte Reize.`});
+    else if(tr7>=65) bel.push({lv:'good',t:base+`Hoch — sehr gute Phase für intensive Einheiten und neue Bestleistungen. Nutze das Fenster.`});
+    else bel.push({lv:'good',t:base+`Solide Basis für moderates Training; für harte Intervalle auf Tage mit >65 warten.`});
   }
-
-  // Stress
-  const st7=avg(lastN('averageStressLevel',7));
+  const st7=avg(lastN('averageStressLevel',7)), stT=trend('averageStressLevel',7);
   if(st7!=null){
-    if(st7>=50) ins.push({lv:'warn',t:`Dein durchschnittlicher <b>Stresswert</b> ist mit <span class="m">${r(st7)}/100</span> erhöht. Bewusste Pausen, Atemübungen oder ein Spaziergang senken die Belastung spürbar.`});
-    else if(st7<=30) ins.push({lv:'good',t:`Dein <b>Stresslevel</b> ist mit Ø <span class="m">${r(st7)}/100</span> angenehm niedrig — gute Balance.`});
+    const base=`Stress Ø <span class="m">${r(st7)}/100</span>${tArrow(stT,true)}. `;
+    if(st7>=50) bel.push({lv:'warn',t:base+`Erhöht — Garmin leitet Stress aus der HRV ab, misst also körperliche Anspannung (auch durch Koffein, wenig Schlaf, mentale Last). Kurze Atem-Pausen, Spaziergänge und feste Offline-Zeiten senken ihn messbar.`});
+    else if(st7<=30) bel.push({lv:'good',t:base+`Angenehm niedrig — gute Balance zwischen An- und Entspannung.`});
+    else bel.push({lv:'good',t:base+`Im moderaten Bereich — unauffällig.`});
   }
-
-  // Zusammenhang Schlaf ↔ Readiness
-  if(slp7!=null&&tr7!=null&&slp7<7&&tr7<50){
-    ins.push({lv:'warn',t:`Der Zusammenhang ist deutlich: <b>weniger Schlaf → niedrigere Readiness</b>. Mehr Schlaf ist gerade dein direktester Hebel, um dich leistungsfähiger zu fühlen.`});
+  // Intensitätsminuten (WHO 150/Woche)
+  const im=lastN('moderateIntensityMinutes',7), vm=lastN('vigorousIntensityMinutes',7);
+  if(im.length){const wk=im.reduce((a,b)=>a+b,0)+2*vm.reduce((a,b)=>a+(b||0),0);
+    const base=`Intensitätsminuten <span class="m">${r(wk)}</span> in 7 Tagen (WHO-Ziel: 150). `;
+    if(wk<150) bel.push({lv:'warn',t:base+`Unter der Gesundheits-Empfehlung. Schon zügiges Gehen oder lockeres Schwimmen zahlt ein — Ziel: 150 moderate (oder 75 intensive) Minuten pro Woche.`});
+    else bel.push({lv:'good',t:base+`Über der Empfehlung — starker Beitrag für Herz-Kreislauf-Gesundheit.`});
   }
+  if(bel.length)S.push({title:'Belastung & Training',items:bel});
 
-  if(!ins.length){el.innerHTML='<div class="empty">Noch zu wenige Werte für eine Analyse.</div>';return;}
+  /* ---------- FITNESS & AKTIVITÄT ---------- */
+  const fit=[];
+  const vo2=latest(days,'vo2Max');
+  if(vo2!=null){
+    const age=+body.age||24, male=body.sex!=='w';
+    // grobe Alters-/Geschlechts-Einordnung
+    let cat,lv;
+    const t=male?[ (age<30?[46,50,55]:age<40?[43,48,53]:[40,45,50]) ]:[ (age<30?[38,42,47]:age<40?[35,40,45]:[33,38,43]) ];
+    const [avgHi,good,exc]=t[0];
+    if(vo2>=exc){cat='exzellent';lv='good';}else if(vo2>=good){cat='sehr gut';lv='good';}else if(vo2>=avgHi){cat='gut';lv='good';}else{cat='ausbaufähig';lv='warn';}
+    fit.push({lv,t:`VO₂max <span class="m">${r(vo2,1)}</span> — für dein Alter <b>${cat}</b>. Der Wert schätzt, wie viel Sauerstoff dein Körper maximal verwerten kann; er gilt als einer der besten Einzel-Prädiktoren für langfristige Gesundheit und lässt sich v.a. durch Intervalle und lange lockere Einheiten steigern.`});
+  }
+  const stp7=avg(lastN('totalSteps',7)), goal=latest(days,'dailyStepGoal'), stpT=trend('totalSteps',7);
+  if(stp7!=null){
+    const base=`Schritte Ø <span class="m">${r(stp7)}</span>/Tag${goal?` (Ziel ${r(goal)})`:''}${tArrow(stpT)}. `;
+    if(goal&&stp7<goal*0.8) fit.push({lv:'warn',t:base+`Unter deinem Tagesziel. Alltagsbewegung (Treppen, Wege zu Fuß) ist ein unterschätzter Baustein für Herz, Stoffwechsel und Stimmung.`});
+    else fit.push({lv:'good',t:base+`Gutes Alltags-Aktivitätsniveau.`});
+  }
+  const resp=latest(days,'avgWakingRespirationValue');
+  if(resp!=null) fit.push({lv:'good',t:`Atemfrequenz (wach) <span class="m">${r(resp)}/min</span> — im normalen Ruhebereich (12–20). Dauerhaft erhöhte Werte können auf Stress oder Belastung hindeuten.`});
+  if(fit.length)S.push({title:'Fitness & Aktivität',items:fit});
 
-  const alerts=ins.filter(i=>i.lv==='alert').length, warns=ins.filter(i=>i.lv==='warn').length;
+  const flat=S.flatMap(s=>s.items);
+  if(!flat.length){el.innerHTML='<div class="empty">Noch zu wenige Werte für eine Analyse.</div>';return;}
+  const alerts=flat.filter(i=>i.lv==='alert').length, warns=flat.filter(i=>i.lv==='warn').length;
   let verdict;
-  if(alerts>0) verdict='Achtung — ein paar Werte brauchen gerade deine Aufmerksamkeit.';
-  else if(warns>=2) verdict='Insgesamt solide, aber bei deiner Erholung gibt es Baustellen.';
-  else if(warns===1) verdict='Rundum gut — nur ein Punkt lohnt einen Blick.';
-  else verdict='Starke Phase — deine Erholungswerte sehen durchweg gut aus.';
+  if(alerts>0) verdict='Achtung — einzelne Werte brauchen jetzt deine Aufmerksamkeit. Der wichtigste Hebel steckt in deiner Erholung.';
+  else if(warns>=3) verdict='Insgesamt solide, aber an mehreren Stellen deiner Erholung gibt es Luft nach oben.';
+  else if(warns>=1) verdict='Rundum gut — nur einzelne Punkte lohnen einen Blick.';
+  else verdict='Starke Phase — deine Werte sehen über Erholung, Belastung und Fitness hinweg durchweg gut aus.';
 
   el.innerHTML=`<div class="verdict">${verdict}</div>`
-    +ins.map(i=>`<div class="ins"><span class="dot ${i.lv}"></span><div class="it">${i.t}</div></div>`).join('')
-    +`<div class="insdisc">Automatische Auswertung deiner Garmin-Werte (kein medizinischer Rat). Bei anhaltenden Auffälligkeiten ärztlich abklären.</div>`;
+    +S.map(sec=>`<div class="inssec">${sec.title}</div>`
+      +sec.items.map(i=>`<div class="ins"><span class="dot ${i.lv}"></span><div class="it">${i.t}</div></div>`).join('')).join('')
+    +`<div class="insdisc">Automatische, datenbasierte Auswertung deiner Garmin-Werte — kein medizinischer Rat. Bei anhaltenden Auffälligkeiten ärztlich abklären.</div>`;
 }
 
 async function loadGarmin(){
