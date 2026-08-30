@@ -596,6 +596,10 @@ document.querySelectorAll('.tab-pill').forEach(b=>b.addEventListener('click',()=
   b.classList.add('active');
   document.getElementById('view-'+b.dataset.view).classList.add('active');
   window.scrollTo({top:0});
+  // Diagramme beim Öffnen des Garmin-Reiters neu einblenden (lebendig statt statisch)
+  if(b.dataset.view==='garmin'&&window.Chart){
+    requestAnimationFrame(()=>{Object.values(Chart.instances).forEach(c=>{try{c.reset();c.update();}catch(e){}});});
+  }
 }));
 
 /* ============ Garmin-Daten ============ */
@@ -603,14 +607,48 @@ let G=null;
 Chart.defaults.font.family="'IBM Plex Mono',monospace";
 Chart.defaults.font.size=9;
 Chart.defaults.color=css('--muted-soft');
+// Elegante Grundeinstellungen: weiche Kurven, keine harten Punkte, runde Balken
+Chart.defaults.elements.line.tension=0.42;
+Chart.defaults.elements.line.borderWidth=1.8;
+Chart.defaults.elements.line.capBezierPoints=true;
+Chart.defaults.elements.point.radius=0;
+Chart.defaults.elements.point.hoverRadius=4;
+Chart.defaults.elements.point.hitRadius=12;
+Chart.defaults.elements.bar.borderRadius=5;
+Chart.defaults.elements.bar.borderSkipped=false;
+
+// Farbe → rgba mit Alpha (für Verläufe)
+function toRGBA(c,a){
+  c=(c||'').trim();
+  if(c.startsWith('#')){const n=parseInt(c.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgba(${r},${g},${b},${a})`;}
+  const m=c.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  return m?`rgba(${m[1]},${m[2]},${m[3]},${a})`:c;
+}
+// Plugin: sanfter Flächen-Verlauf unter gefüllten Linien
+Chart.register({
+  id:'elegantGradient',
+  beforeDatasetsDraw(chart){
+    const{ctx,chartArea}=chart;if(!chartArea)return;
+    chart.data.datasets.forEach(ds=>{
+      if(ds.type==='line'&&ds.fill&&ds.borderColor){
+        const g=ctx.createLinearGradient(0,chartArea.top,0,chartArea.bottom);
+        g.addColorStop(0,toRGBA(ds.borderColor,0.30));
+        g.addColorStop(0.55,toRGBA(ds.borderColor,0.07));
+        g.addColorStop(1,toRGBA(ds.borderColor,0));
+        ds.backgroundColor=g;
+      }
+    });
+  }
+});
 
 function baseOpts(extra={}){
   return Object.assign({
     responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'#0a0a0b',borderColor:css('--hairline'),borderWidth:1,titleFont:{size:10},bodyFont:{size:10}}},
+    animation:{duration:1150,easing:'easeOutQuart'},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,20,36,.94)',borderColor:css('--hairline'),borderWidth:1,cornerRadius:8,padding:9,titleFont:{size:10},bodyFont:{size:10},displayColors:false}},
     scales:{
-      x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:6}},
-      y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:5}}
+      x:{grid:{display:false},border:{display:false},ticks:{maxTicksLimit:6,color:css('--muted-soft'),padding:4}},
+      y:{grid:{color:'rgba(120,165,235,.06)'},border:{display:false},ticks:{maxTicksLimit:5,color:css('--muted-soft'),padding:6}}
     },
     interaction:{intersect:false,mode:'index'},
     spanGaps:true
@@ -697,8 +735,8 @@ function renderCharts(){
     {type:'bar',label:'REM',data:g('remSleepSeconds').map(v=>v!=null?v/3600:null),backgroundColor:css('--rem'),stack:'s'},
     {type:'bar',label:'Wach',data:g('awakeSleepSeconds').map(v=>v!=null?v/3600:null),backgroundColor:css('--wake'),stack:'s'},
     {type:'line',label:'Score',data:g('sleepScore'),borderColor:ACC,borderWidth:1.5,pointRadius:0,yAxisID:'y2'}
-  ]},options:baseOpts({scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:6}},
-    y:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},title:{display:false}},
+  ]},options:baseOpts({scales:{x:{stacked:true,grid:{color:'rgba(120,165,235,.05)'},ticks:{maxTicksLimit:6}},
+    y:{stacked:true,grid:{color:'rgba(120,165,235,.05)'},title:{display:false}},
     y2:{position:'right',min:0,max:100,grid:{display:false}}}})});
 
   /* HRV mit Baseline-Band */
@@ -706,7 +744,7 @@ function renderCharts(){
   new Chart(hc,{data:{labels,datasets:[
     {type:'line',label:'Baseline hoch',data:g('hrvBaselineHigh'),borderWidth:0,pointRadius:0,fill:'+1',backgroundColor:'rgba(106,168,255,.12)'},
     {type:'line',label:'Baseline tief',data:g('hrvBaselineLow'),borderWidth:0,pointRadius:0},
-    {type:'line',label:'HRV',data:g('hrvLastNightAvg'),borderColor:GOLD,borderWidth:1.8,pointRadius:2,pointBackgroundColor:GOLD}
+    {type:'line',label:'HRV',data:g('hrvLastNightAvg'),borderColor:GOLD}
   ]},options:baseOpts()});
 
   /* Body Battery */
@@ -714,11 +752,11 @@ function renderCharts(){
   new Chart(bc,{data:{labels,datasets:[
     {type:'line',label:'Hoch',data:g('bodyBatteryHighestValue'),borderColor:LIVE,borderWidth:1.5,pointRadius:0,fill:'+1',backgroundColor:'rgba(127,217,154,.10)'},
     {type:'line',label:'Tief',data:g('bodyBatteryLowestValue'),borderColor:ROSE,borderWidth:1.2,pointRadius:0}
-  ]},options:baseOpts({scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:6}},y:{min:0,max:100,grid:{color:'rgba(255,255,255,.04)'}}}})});
+  ]},options:baseOpts({scales:{x:{grid:{color:'rgba(120,165,235,.05)'},ticks:{maxTicksLimit:6}},y:{min:0,max:100,grid:{color:'rgba(120,165,235,.05)'}}}})});
 
   /* Ruhepuls */
   new Chart(card('chRhr','Ruhepuls',latest(days,'restingHeartRate'),'bpm'),{data:{labels,datasets:[
-    {type:'line',data:g('restingHeartRate'),borderColor:ROSE,borderWidth:1.8,pointRadius:2,pointBackgroundColor:ROSE}
+    {type:'line',data:g('restingHeartRate'),borderColor:ROSE,fill:true}
   ]},options:baseOpts()});
 
   /* Stress */
@@ -729,8 +767,8 @@ function renderCharts(){
 
   /* Training Readiness */
   new Chart(card('chTR','Training Readiness',latest(days,'trainingReadiness'),'/100'),{data:{labels,datasets:[
-    {type:'line',data:g('trainingReadiness'),borderColor:LIVE,borderWidth:1.8,pointRadius:2,pointBackgroundColor:LIVE,fill:true,backgroundColor:'rgba(127,217,154,.07)'}
-  ]},options:baseOpts({scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:6}},y:{min:0,max:100,grid:{color:'rgba(255,255,255,.04)'}}}})});
+    {type:'line',data:g('trainingReadiness'),borderColor:LIVE,fill:true}
+  ]},options:baseOpts({scales:{x:{grid:{color:'rgba(120,165,235,.05)'},ticks:{maxTicksLimit:6}},y:{min:0,max:100,grid:{color:'rgba(120,165,235,.05)'}}}})});
 
   /* Schritte */
   const stepGoal=latest(days,'dailyStepGoal');
@@ -749,17 +787,17 @@ function renderCharts(){
   new Chart(card('chIM','Intensitätsminuten',(()=>{const m=latest(days,'moderateIntensityMinutes'),v=latest(days,'vigorousIntensityMinutes');return (m||0)+(v||0)*2;})(),'/Wo-Punkte','Moderat + 2× Intensiv'),{data:{labels,datasets:[
     {type:'bar',label:'Moderat',data:g('moderateIntensityMinutes'),backgroundColor:'rgba(106,168,255,.5)',stack:'i'},
     {type:'bar',label:'Intensiv',data:g('vigorousIntensityMinutes'),backgroundColor:'rgba(127,217,154,.55)',stack:'i'}
-  ]},options:baseOpts({scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:6}},y:{stacked:true,grid:{color:'rgba(255,255,255,.04)'}}}})});
+  ]},options:baseOpts({scales:{x:{stacked:true,grid:{color:'rgba(120,165,235,.05)'},ticks:{maxTicksLimit:6}},y:{stacked:true,grid:{color:'rgba(120,165,235,.05)'}}}})});
 
   /* Atmung + SpO2 falls vorhanden */
   if(days.some(d=>G.wellness[d].avgWakingRespirationValue!=null)){
     new Chart(card('chResp','Atemfrequenz (wach)',latest(days,'avgWakingRespirationValue'),'brpm'),{data:{labels,datasets:[
-      {type:'line',data:g('avgWakingRespirationValue'),borderColor:ACC,borderWidth:1.5,pointRadius:0}
+      {type:'line',data:g('avgWakingRespirationValue'),borderColor:ACC,fill:true}
     ]},options:baseOpts()});
   }
   if(days.some(d=>G.wellness[d].averageSpo2!=null)){
     new Chart(card('chSpo2','SpO2 Ø',latest(days,'averageSpo2'),'%'),{data:{labels,datasets:[
-      {type:'line',data:g('averageSpo2'),borderColor:GOLD,borderWidth:1.5,pointRadius:2}
+      {type:'line',data:g('averageSpo2'),borderColor:GOLD,fill:true}
     ]},options:baseOpts()});
   }
 
