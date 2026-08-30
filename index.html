@@ -148,13 +148,31 @@ textarea{min-height:90px;resize:vertical;}
 .mail .ms .subj{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail .ms .from{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail.unread .subj::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:middle;box-shadow:0 0 6px var(--gold);}
-.news{display:block;padding:13px 2px;border-bottom:1px solid var(--hairline-soft);text-decoration:none;}
+/* Morgenbericht */
+.brieflead{font-size:14px;line-height:1.55;color:var(--ink);margin-bottom:14px;}
+.brieflead b{color:var(--accent);font-weight:600;}
+.hero{display:block;text-decoration:none;border:1px solid var(--hairline-soft);border-radius:3px;overflow:hidden;margin-bottom:14px;}
+.hero img{width:100%;height:150px;object-fit:cover;display:block;background:var(--void-2);}
+.hero .hb{padding:12px 13px;}
+.hero .hs{font-family:var(--font-mono);font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;}
+.hero .ht{font-family:var(--font-display);font-style:italic;font-size:18px;line-height:1.3;color:var(--ink);}
+.hero .hsum{font-size:12.5px;line-height:1.45;color:var(--muted);margin-top:6px;}
+.newblk{border:1px solid var(--gold-soft);background:var(--gold-dim);border-radius:3px;padding:12px 13px;}
+.newblk .nbh{font-family:var(--font-mono);font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.newblk a{display:block;text-decoration:none;color:var(--ink);font-size:13px;line-height:1.4;padding:5px 0;border-bottom:1px solid var(--hairline-soft);}
+.newblk a:last-child{border-bottom:none;}
+.newblk a:hover{color:var(--accent);}
+.newblk .none{font-size:12.5px;color:var(--muted);}
+/* Meldungsliste mit Bild */
+.news{display:flex;gap:12px;padding:13px 2px;border-bottom:1px solid var(--hairline-soft);text-decoration:none;align-items:flex-start;}
 .news:last-child{border-bottom:none;}
-.news .nh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:5px;}
-.news .src{font-family:var(--font-mono);font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
-.news .nt{font-family:var(--font-mono);font-size:8.5px;color:var(--muted-soft);white-space:nowrap;}
-.news .ntitle{font-size:14.5px;font-weight:600;line-height:1.35;color:var(--ink);}
-.news .nsum{font-size:12px;line-height:1.45;color:var(--muted);margin-top:4px;}
+.news .nimg{width:78px;height:58px;flex-shrink:0;border-radius:3px;object-fit:cover;background:var(--void-2);}
+.news .nbody{flex:1;min-width:0;}
+.news .nh{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:4px;}
+.news .src{font-family:var(--font-mono);font-size:8px;letter-spacing:1.1px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
+.news .nt{font-family:var(--font-mono);font-size:8px;color:var(--muted-soft);white-space:nowrap;}
+.news .ntitle{font-size:13.5px;font-weight:600;line-height:1.32;color:var(--ink);}
+.news.isnew .ntitle::before{content:'●';color:var(--gold);font-size:9px;margin-right:5px;vertical-align:middle;}
 .news:active .ntitle,.news:hover .ntitle{color:var(--accent);}
 .supp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline-soft);}
 .supp:last-child{border-bottom:none;}
@@ -340,9 +358,14 @@ textarea{min-height:90px;resize:vertical;}
   <!-- ============ NEWS ============ -->
   <section class="view" id="view-news">
     <div class="panel">
-      <h2>Weltnachrichten</h2>
-      <div class="sub">Tagesschau — Topthemen &amp; Ausland, automatisch aktualisiert</div>
+      <h2>Morgenbericht</h2>
+      <div class="sub" id="briefSub">Was los ist &amp; was neu ist</div>
       <span class="badge" id="newsBadge">LIVE</span>
+      <div id="briefArea"><div class="empty">Lade Bericht …</div></div>
+    </div>
+    <div class="panel">
+      <h2>Alle Meldungen</h2>
+      <div class="sub">Tagesschau — Topthemen &amp; Ausland</div>
       <div id="newsArea"><div class="empty">Lade Nachrichten …</div></div>
     </div>
   </section>
@@ -870,7 +893,10 @@ async function loadMails(){
 }
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 
-/* ============ Nachrichten ============ */
+/* ============ Nachrichten & Morgenbericht ============ */
+const newsHref=l=>/^https?:\/\//.test(l||'')?l:'#';
+const newsDate=p=>{const d=p?new Date(p):null;return d?d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';};
+
 async function loadNews(){
   let D=null;
   try{
@@ -881,16 +907,47 @@ async function loadNews(){
   noteFreshness('news',D.generated);
   $('#newsBadge').textContent=gen?('STAND '+gen.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' UHR'):'LIVE';
   const items=D.items||[];
-  if(!items.length){$('#newsArea').innerHTML='<div class="empty">Keine Nachrichten verfügbar.</div>';return;}
+  if(!items.length){$('#briefArea').innerHTML='<div class="empty">Kein Bericht verfügbar.</div>';$('#newsArea').innerHTML='';return;}
+
+  // "neu seit letztem Besuch" clientseitig ermitteln
+  const seen=new Set(store.get('friday_news_seen',[]));
+  const isNew=n=>n.id&&!seen.has(n.id);
+  const fresh=items.filter(isNew);
+
+  // Morgenbericht: Begrüßung + wichtigste Meldung als Aufmacher + Neu-Block
+  const hour=new Date().getHours();
+  const greet=hour<11?'Guten Morgen':hour<18?'Hallo':'Guten Abend';
+  const firstVisit=seen.size===0;
+  const leadTxt=firstVisit
+    ? `${greet}, Max. Hier die aktuelle Lage aus aller Welt — <b>${items.length} Meldungen</b> von der Tagesschau.`
+    : (fresh.length
+        ? `${greet}, Max. <b>${fresh.length} neue Meldung${fresh.length===1?'':'en'}</b> seit deinem letzten Besuch.`
+        : `${greet}, Max. Seit deinem letzten Besuch gibt es <b>nichts Neues</b> — hier der aktuelle Stand.`);
+
+  const hero=items[0];
+  const heroImg=hero.image?`<img src="${esc(hero.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`:'';
+  const heroHtml=`<a class="hero" href="${esc(newsHref(hero.link))}" target="_blank" rel="noopener noreferrer">
+      ${heroImg}<div class="hb"><div class="hs">${esc(hero.source||'News')} · ${newsDate(hero.published)}</div>
+      <div class="ht">${esc(hero.title)}</div>${hero.summary?`<div class="hsum">${esc(hero.summary)}</div>`:''}</div></a>`;
+
+  const newBlock=(!firstVisit&&fresh.length)
+    ? `<div class="newblk"><div class="nbh">Neu seit deinem letzten Besuch</div>
+        ${fresh.slice(0,6).map(n=>`<a href="${esc(newsHref(n.link))}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a>`).join('')}</div>`
+    : '';
+
+  $('#briefArea').innerHTML=`<div class="brieflead">${leadTxt}</div>${heroHtml}${newBlock}`;
+
+  // Alle Meldungen mit Bild
   $('#newsArea').innerHTML=items.map(n=>{
-    const d=n.published?new Date(n.published):null;
-    const dt=d?d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
-    const href=/^https?:\/\//.test(n.link||'')?n.link:'#';
-    return `<a class="news" href="${esc(href)}" target="_blank" rel="noopener noreferrer">
-      <div class="nh"><span class="src">${esc(n.source||'News')}</span><span class="nt">${dt}</span></div>
-      <div class="ntitle">${esc(n.title)}</div>
-      ${n.summary?`<div class="nsum">${esc(n.summary)}</div>`:''}</a>`;
+    const img=n.image?`<img class="nimg" src="${esc(n.image)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`:'<div class="nimg"></div>';
+    return `<a class="news ${isNew(n)?'isnew':''}" href="${esc(newsHref(n.link))}" target="_blank" rel="noopener noreferrer">
+      ${img}<div class="nbody">
+      <div class="nh"><span class="src">${esc(n.source||'News')}</span><span class="nt">${newsDate(n.published)}</span></div>
+      <div class="ntitle">${esc(n.title)}</div></div></a>`;
   }).join('');
+
+  // gesehene IDs merken (lokal pro Gerät, ohne Sync auszulösen)
+  try{localStorage.setItem('friday_news_seen',JSON.stringify(items.map(n=>n.id).filter(Boolean).slice(0,60)));}catch(e){}
 }
 
 /* ============ Kalender ============ */
