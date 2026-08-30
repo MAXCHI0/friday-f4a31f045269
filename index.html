@@ -148,6 +148,14 @@ textarea{min-height:90px;resize:vertical;}
 .mail .ms .subj{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail .ms .from{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mail.unread .subj::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:middle;box-shadow:0 0 6px var(--gold);}
+.news{display:block;padding:13px 2px;border-bottom:1px solid var(--hairline-soft);text-decoration:none;}
+.news:last-child{border-bottom:none;}
+.news .nh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:5px;}
+.news .src{font-family:var(--font-mono);font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
+.news .nt{font-family:var(--font-mono);font-size:8.5px;color:var(--muted-soft);white-space:nowrap;}
+.news .ntitle{font-size:14.5px;font-weight:600;line-height:1.35;color:var(--ink);}
+.news .nsum{font-size:12px;line-height:1.45;color:var(--muted);margin-top:4px;}
+.news:active .ntitle,.news:hover .ntitle{color:var(--accent);}
 .supp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline-soft);}
 .supp:last-child{border-bottom:none;}
 .supp .sn{font-size:14px;font-weight:600;}
@@ -329,6 +337,16 @@ textarea{min-height:90px;resize:vertical;}
     </div>
   </section>
 
+  <!-- ============ NEWS ============ -->
+  <section class="view" id="view-news">
+    <div class="panel">
+      <h2>Weltnachrichten</h2>
+      <div class="sub">Tagesschau — Topthemen &amp; Ausland, automatisch aktualisiert</div>
+      <span class="badge" id="newsBadge">LIVE</span>
+      <div id="newsArea"><div class="empty">Lade Nachrichten …</div></div>
+    </div>
+  </section>
+
   <!-- ============ CHECK-IN ============ -->
   <section class="view" id="view-checkin">
     <div class="panel">
@@ -399,6 +417,7 @@ textarea{min-height:90px;resize:vertical;}
   <button class="tab-pill" data-view="macros">MAKROS</button>
   <button class="tab-pill" data-view="cal">KALENDER</button>
   <button class="tab-pill" data-view="mails">MAILS</button>
+  <button class="tab-pill" data-view="news">NEWS</button>
   <button class="tab-pill" data-view="checkin">CHECK-IN</button>
   <button class="tab-pill" data-view="goals">ZIELE</button>
   <button class="tab-pill" data-view="journal">REFLEXION</button>
@@ -530,7 +549,7 @@ async function refreshAll(force){
   if(btn)btn.classList.add('spinning');
   PROPOSALS=[];
   try{
-    await Promise.all([loadGarmin(),loadMails(),loadCalendar(),pullState()]);
+    await Promise.all([loadGarmin(),loadMails(),loadCalendar(),loadNews(),pullState()]);
     renderProposals();
   }catch(e){}
   if(btn)setTimeout(()=>btn.classList.remove('spinning'),500);
@@ -851,6 +870,29 @@ async function loadMails(){
 }
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 
+/* ============ Nachrichten ============ */
+async function loadNews(){
+  let D=null;
+  try{
+    const r=await fetch('data/news.json?v='+Date.now());
+    D=await r.json();
+  }catch(e){$('#newsArea').innerHTML='<div class="empty">Nachrichten nicht erreichbar.</div>';return;}
+  const gen=D.generated?new Date(D.generated):null;
+  noteFreshness('news',D.generated);
+  $('#newsBadge').textContent=gen?('STAND '+gen.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' UHR'):'LIVE';
+  const items=D.items||[];
+  if(!items.length){$('#newsArea').innerHTML='<div class="empty">Keine Nachrichten verfügbar.</div>';return;}
+  $('#newsArea').innerHTML=items.map(n=>{
+    const d=n.published?new Date(n.published):null;
+    const dt=d?d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    const href=/^https?:\/\//.test(n.link||'')?n.link:'#';
+    return `<a class="news" href="${esc(href)}" target="_blank" rel="noopener noreferrer">
+      <div class="nh"><span class="src">${esc(n.source||'News')}</span><span class="nt">${dt}</span></div>
+      <div class="ntitle">${esc(n.title)}</div>
+      ${n.summary?`<div class="nsum">${esc(n.summary)}</div>`:''}</a>`;
+  }).join('');
+}
+
 /* ============ Kalender ============ */
 async function loadCalendar(){
   let C=null;
@@ -1122,7 +1164,7 @@ function startNexus(){
 }
 
 /* ============ Start ============ */
-loadGarmin();loadMails();loadCalendar();renderProposals();startNexus();loadCheckin();renderStreak();renderGoals();
+loadGarmin();loadMails();loadCalendar();loadNews();renderProposals();startNexus();loadCheckin();renderStreak();renderGoals();
 renderList('friday_weekgoals','#weekGoals');renderList('friday_monthgoals','#monthGoals');renderJournal();renderMacros();
 updateSyncPill();pullState();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
