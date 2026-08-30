@@ -281,8 +281,8 @@ textarea{min-height:90px;resize:vertical;}
       <div id="homeNews" class="empty">—</div>
     </div>
     <div class="panel">
-      <h2>Mails</h2>
-      <div class="sub">Kurzüberblick</div>
+      <h2>Uni-Mails</h2>
+      <div class="sub">FH Aachen — Kurzüberblick</div>
       <div id="homeMails" class="empty">—</div>
     </div>
     <div class="panel">
@@ -1149,11 +1149,15 @@ const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 // Home: Mail-Kurzüberblick (ungelesen + neueste Betreffs)
 function renderHomeMails(M){
   const el=$('#homeMails');if(!el||!M||!M.accounts)return;
-  const unread=M.accounts.reduce((s,a)=>s+(a.unread||0),0);
-  const all=M.accounts.flatMap(a=>a.messages||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).slice(0,3);
-  if(!all.length){el.className='empty';el.textContent='Keine Mails.';return;}
+  // Nur die Uni-Mails (FH Aachen) auf der Home-Seite
+  const uni=M.accounts.filter(a=>/fh.?aachen/i.test((a.label||'')+' '+(a.address||'')));
+  if(!uni.length){el.className='empty';el.textContent='Keine Uni-Mails erreichbar.';return;}
+  const unread=uni.reduce((s,a)=>s+(a.unread||0),0);
+  const total=uni.reduce((s,a)=>s+(a.messages?a.messages.length:0),0);
+  const all=uni.flatMap(a=>a.messages||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).slice(0,3);
+  if(!all.length){el.className='empty';el.textContent='Keine Uni-Mails.';return;}
   el.className='';
-  const head=`<div style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:${unread?'var(--gold)':'var(--muted-soft)'};margin-bottom:8px;">${unread?unread+' UNGELESEN':'ALLES GELESEN'} · ${M.accounts.reduce((s,a)=>s+(a.messages?a.messages.length:0),0)} Mails</div>`;
+  const head=`<div style="font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:${unread?'var(--gold)':'var(--muted-soft)'};margin-bottom:8px;">${unread?unread+' UNGELESEN':'ALLES GELESEN'} · ${total} Uni-Mails</div>`;
   el.innerHTML=head+all.map(m=>`<div class="hsumrow"><span class="hd2">${(m.date||'').slice(5,10).split('-').reverse().join('.')}</span><span class="ht2">${esc(m.subject)}</span></div>`).join('');
 }
 
