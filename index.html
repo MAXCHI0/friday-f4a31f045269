@@ -1216,12 +1216,19 @@ const STATES={
     desc:'Erhaltungsphase ohne aktives Zu- oder Abnehmen. Ausgewogene Verteilung, entspanntes Essen auf Verbrauchsniveau.'}
 };
 
-function avgTDEE(){
+function avgTDEE(){const e=garminEnergy();return e?e.tdee:null;}
+// Energie-Kennzahlen direkt aus Garmin: gemessener Verbrauch, Grundumsatz vs. Aktivität, Tagesspanne
+function garminEnergy(){
   if(!G||!G.wellness)return null;
-  const vals=Object.values(G.wellness).map(w=>w.totalKilocalories).filter(v=>v!=null);
-  if(!vals.length)return null;
-  const recent=vals.slice(-14);
-  return Math.round(recent.reduce((a,b)=>a+b,0)/recent.length);
+  const days=Object.keys(G.wellness).sort();
+  const rows=days.map(d=>G.wellness[d]).filter(w=>w.totalKilocalories!=null).slice(-14);
+  if(!rows.length)return null;
+  const tot=rows.map(w=>w.totalKilocalories);
+  const act=rows.map(w=>w.activeKilocalories).filter(v=>v!=null);
+  const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const tdee=Math.round(mean(tot));
+  const active=act.length?Math.round(mean(act)):null;
+  return {tdee,active,bmr:active!=null?tdee-active:null,min:Math.round(Math.min(...tot)),max:Math.round(Math.max(...tot)),n:rows.length};
 }
 function mifflin(b){
   if(!b.weight||!b.height||!b.age)return null;
@@ -1241,11 +1248,14 @@ function renderMacros(){
   const st=STATES[b.state]||STATES.lazy;
   $('#stateDesc').textContent=st.desc;
 
-  // Kalorienbasis: gemessener Garmin-Verbrauch, sonst Formel
-  const garmin=avgTDEE();
+  // Kalorienbasis: gemessener Garmin-Verbrauch (Grundumsatz + Aktivität), sonst Formel
+  const ge=garminEnergy();
   const formel=mifflin(b);
-  const maint=garmin||formel;
-  if(garmin)$('#tdeeNote').innerHTML=`Basis: dein Garmin-Verbrauch <b style="color:var(--live)">Ø ${garmin} kcal/Tag</b> (letzte 14 Tage)`;
+  const maint=ge?ge.tdee:formel;
+  if(ge){
+    const split=(ge.bmr!=null&&ge.active!=null)?` — Grundumsatz ~${ge.bmr} + Aktivität ~${ge.active}`:'';
+    $('#tdeeNote').innerHTML=`Basis: dein <b style="color:var(--live)">gemessener Garmin-Verbrauch Ø ${ge.tdee} kcal/Tag</b> (${ge.n} Tage)${split}. Alle Werte unten passen sich automatisch deinem Verbrauch an.`;
+  }
   else if(formel)$('#tdeeNote').innerHTML=`Basis: Schätzung aus deinen Werten <b>${formel} kcal/Tag</b> (Garmin-Verbrauch noch nicht verfügbar)`;
   else $('#tdeeNote').innerHTML='Gib Gewicht, Größe & Alter ein, damit ich ohne Garmin-Daten rechnen kann.';
 
@@ -1272,8 +1282,11 @@ function renderMacros(){
   $('#macroSub').innerHTML=st.label+' · '+(diff>0?`+${diff}`:diff)+' kcal ggü. Verbrauch';
   $('#macroGrid').innerHTML=tiles.map(t=>
     `<div class="stat ${t.cls}"><div class="k">${t.k}</div><div class="v">${t.v!=null?t.v:'–'}<small>${t.u}</small></div></div>`).join('');
+  const rangeTxt=(ge&&ge.max-ge.min>=300)
+    ? ` <b>An aktiven Tagen</b> verbrauchst du bis ~${ge.max} kcal, an ruhigen ~${ge.min} — iss an Trainingstagen entsprechend mehr (v.a. Kohlenhydrate).`
+    : '';
   $('#macroExplain').innerHTML = w
-    ? `Verteilung für <b>${b.weight} kg</b>: <b>${st.prot} g</b> Protein und <b>${st.fat} g</b> Fett pro kg Körpergewicht, der Rest als Kohlenhydrate. Protein auf 3–4 Mahlzeiten verteilen, Kohlenhydrate v.a. rund ums Training.`
+    ? `Verteilung für <b>${b.weight} kg</b>: <b>${st.prot} g</b> Protein und <b>${st.fat} g</b> Fett pro kg Körpergewicht, der Rest als Kohlenhydrate. Die Kalorien folgen deinem Garmin-Verbrauch, steigen also an aktiven Tagen automatisch mit.${rangeTxt}`
     : 'Trag dein <b>Gewicht</b> ein, dann rechne ich Protein, Kohlenhydrate und Fett exakt aus.';
 
   // Supplemente — Basis täglich, Optionales je nach Phase/Training
