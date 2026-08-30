@@ -932,22 +932,8 @@ async function loadNews(){
         ? `${greet}, Max. <b>${fresh.length} neue Meldung${fresh.length===1?'':'en'}</b> seit deinem letzten Besuch.`
         : `${greet}, Max. Seit deinem letzten Besuch gibt es <b>nichts Neues</b> — hier der aktuelle Stand.`);
 
-  // Aufmacher (wichtigste Meldung mit Bild)
-  const hero=items[0];
-  const heroImg=hero.image?`<img src="${esc(hero.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`:'';
-  const heroHtml=`<a class="hero" href="${esc(newsHref(hero.link))}" target="_blank" rel="noopener noreferrer">
-      ${heroImg}<div class="hb"><div class="hs">${esc(hero.source||'News')} · ${newsDate(hero.published)}</div>
-      <div class="ht">${esc(hero.title)}</div>${hero.summary?`<div class="hsum">${esc(hero.summary)}</div>`:''}</div></a>`;
-
-  // Gestapelte Übersicht: ALLE Schlagzeilen kompakt übereinander
-  const overview=items.map(n=>`<a class="briefrow ${isNew(n)?'isnew':''}" href="${esc(newsHref(n.link))}" target="_blank" rel="noopener noreferrer">
-      <span class="bt">${newsDate(n.published).split(',')[1]||newsDate(n.published)}</span>
-      <span class="btitle">${esc(n.title)}<span class="bsrc">${esc(n.source||'News')}</span></span></a>`).join('');
-
-  $('#briefArea').innerHTML=`<div class="brieflead">${leadTxt}</div>${heroHtml}${overview}`;
-
-  // Alle Meldungen mit Bild (aufklappbar)
-  $('#newsArea').innerHTML=items.map(n=>{
+  // eine Meldungs-Karte: Bild + Überschrift + ein Satz
+  const card=n=>{
     const img=n.image?`<img class="nimg" src="${esc(n.image)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`:'<div class="nimg"></div>';
     const oneSentence=(n.summary||'').split(/(?<=[.!?])\s/)[0];
     return `<a class="news ${isNew(n)?'isnew':''}" href="${esc(newsHref(n.link))}" target="_blank" rel="noopener noreferrer">
@@ -955,7 +941,13 @@ async function loadNews(){
       <div class="nh"><span class="src">${esc(n.source||'News')}</span><span class="nt">${newsDate(n.published)}</span></div>
       <div class="ntitle">${esc(n.title)}</div>
       ${oneSentence?`<div class="nsum">${esc(oneSentence)}</div>`:''}</div></a>`;
-  }).join('');
+  };
+
+  // Morgenbericht: kurze Einleitung + die 10 wichtigsten Meldungen (Bild + Satz)
+  $('#briefArea').innerHTML=`<div class="brieflead">${leadTxt}</div>`+items.slice(0,10).map(card).join('');
+
+  // Alle Meldungen (aufklappbar) — komplette Liste
+  $('#newsArea').innerHTML=items.map(card).join('');
 
   // gesehene IDs merken (lokal pro Gerät, ohne Sync auszulösen)
   try{localStorage.setItem('friday_news_seen',JSON.stringify(items.map(n=>n.id).filter(Boolean).slice(0,60)));}catch(e){}
