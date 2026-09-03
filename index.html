@@ -296,6 +296,11 @@ textarea{min-height:90px;resize:vertical;}
       <div class="sub">Wie sich deine Garmin-Werte entwickelt haben</div>
       <div id="garminDelta" style="font-size:13.5px;line-height:1.6;color:var(--muted);">—</div>
     </div>
+    <div class="panel">
+      <h2>System-Status</h2>
+      <div class="sub">Sind deine Daten aktuell?</div>
+      <div id="statusArea"><div class="empty">—</div></div>
+    </div>
   </section>
 
   <!-- ============ GARMIN ============ -->
@@ -846,6 +851,30 @@ function noteFreshness(src,iso){
   FRESH[src]=new Date(iso);
   const newest=Object.values(FRESH).sort((a,b)=>b-a)[0];
   $('#metaUpdated').textContent='Stand: '+newest.toLocaleString('de-DE',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr';
+  renderStatus();
+}
+
+// System-Status auf der Startseite: sind die Daten aktuell?
+function renderStatus(){
+  const el=$('#statusArea');if(!el)return;
+  const now=Date.now();
+  const rows=[
+    {key:'garmin',label:'⌚ Garmin',warnH:26},
+    {key:'cal',label:'📅 Kalender',warnH:4},
+    {key:'mail',label:'📬 Mails',warnH:4},
+    {key:'news',label:'📰 News',warnH:4}
+  ];
+  el.innerHTML=rows.map(r=>{
+    const d=FRESH[r.key];
+    if(!d)return `<div class="ins"><span class="dot warn"></span><div class="it"><b>${r.label}</b>: lädt …</div></div>`;
+    const h=(now-d.getTime())/3600000;
+    const fresh=h<r.warnH;
+    const ago=h<1?Math.max(1,Math.round(h*60))+' Min':(h<48?Math.round(h)+' Std':Math.round(h/24)+' Tagen');
+    let extra='';
+    if(r.key==='garmin')extra=fresh?' · <span style="color:var(--live)">Auto-Update läuft ✓</span>':' · <span style="color:var(--rose)">Auto-Weck aktivieren</span>';
+    return `<div class="ins"><span class="dot ${fresh?'good':'warn'}"></span><div class="it"><b>${r.label}</b>: ${fresh?'aktuell':'veraltet'} (vor ${ago})${extra}</div></div>`;
+  }).join('')
+  +`<div class="insdisc">Grün = aktuell. Garmin gilt als aktuell, wenn der tägliche Auto-Weck läuft (max. ~1 Tag alt). Mails/Kalender/News kommen aus der Cloud.</div>`;
 }
 
 function renderToday(){
