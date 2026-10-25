@@ -200,6 +200,10 @@ textarea{min-height:90px;resize:vertical;}
 .ins .it{flex:1;font-size:13px;line-height:1.5;color:var(--muted);}
 .ins .it b{color:var(--ink);font-weight:600;}
 .ins .it .m{color:var(--accent);font-weight:600;}
+.ins .it .act{font-weight:700;}
+.ins .it .act.alert{color:var(--rose);}
+.ins .it .act.warn{color:var(--gold);}
+.ins .it .act.good{color:var(--live);}
 .inssec{font-family:var(--font-mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:20px 0 4px;padding-bottom:6px;border-bottom:1px solid var(--hairline-soft);}
 .inssec:first-of-type{margin-top:4px;}
 .insdisc{font-family:var(--font-mono);font-size:8.5px;color:var(--muted-soft);margin-top:14px;line-height:1.55;}
@@ -331,10 +335,11 @@ textarea{min-height:90px;resize:vertical;}
     <div class="panel">
       <h2>Form-Zustand</h2>
       <div class="sub">Wähle deine aktuelle Trainingsphase</div>
-      <div class="seg" id="stateSeg" style="gap:8px;">
+      <div class="seg" id="stateSeg" style="gap:8px;flex-wrap:wrap;">
         <button data-v="bulk">🔺 BULK</button>
         <button data-v="cut">🔻 CUT</button>
         <button data-v="lazy">😴 LAZY</button>
+        <button data-v="krank">🤒 KRANK / VERLETZT</button>
       </div>
       <div id="stateDesc" style="font-size:13px;color:var(--muted);line-height:1.55;margin-top:14px;"></div>
     </div>
@@ -356,6 +361,7 @@ textarea{min-height:90px;resize:vertical;}
     <div class="panel">
       <h2>Makros pro Tag</h2>
       <div class="sub" id="macroSub">Kalorien &amp; Nährstoff-Verteilung</div>
+      <div id="recoNote"></div>
       <div class="grid" id="macroGrid"></div>
       <div id="macroExplain" style="font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:14px;"></div>
     </div>
@@ -732,8 +738,8 @@ function renderInsight(){
   if(rhr7!=null&&rhr30!=null){
     const diff=rhr7-rhr30;
     const base=`Ruhepuls Ø <span class="m">${r(rhr7)} bpm</span> (7 Tage)${tArrow(rhrT,true)}. `;
-    if(diff>=5) erh.push({lv:'alert',t:base+`Das liegt <b>${r(diff)} bpm über</b> deinem Monatsschnitt (${r(rhr30)}) — ein deutlich erhöhter Ruhepuls. Der Körper braucht mehr Energie zur Grundregeneration: typische Ursachen sind Schlafmangel, hoher Stress, Alkohol, Übertraining oder ein beginnender Infekt. Ein niedriger Ruhepuls ist dagegen ein Marker für gute Ausdauerfitness und Erholung. <b>Empfehlung:</b> 1–2 ruhige Tage, früh schlafen, viel trinken.`});
-    else if(diff>=2.5) erh.push({lv:'warn',t:base+`Etwas über deinem Monatsschnitt (${r(rhr30)}). Leicht erhöht — meist Folge von zu wenig oder unruhigem Schlaf bzw. Stress am Vortag. Beobachte den Verlauf.`});
+    if(diff>=5) erh.push({lv:'alert',a:'Gönn dir Ruhe.',t:base+`Das liegt <b>${r(diff)} bpm über</b> deinem Monatsschnitt (${r(rhr30)}) — ein deutlich erhöhter Ruhepuls. Der Körper braucht mehr Energie zur Grundregeneration: typische Ursachen sind Schlafmangel, hoher Stress, Alkohol, Übertraining oder ein beginnender Infekt. Ein niedriger Ruhepuls ist dagegen ein Marker für gute Ausdauerfitness und Erholung. <b>Empfehlung:</b> 1–2 ruhige Tage, früh schlafen, viel trinken.`});
+    else if(diff>=2.5) erh.push({lv:'warn',a:'Im Blick behalten.',t:base+`Etwas über deinem Monatsschnitt (${r(rhr30)}). Leicht erhöht — meist Folge von zu wenig oder unruhigem Schlaf bzw. Stress am Vortag. Beobachte den Verlauf.`});
     else if(diff<=-2) erh.push({lv:'good',t:base+`Unter deinem Monatsschnitt (${r(rhr30)}) — ein starkes Zeichen: dein Herz arbeitet ökonomischer, Erholung und Ausdauerbasis stimmen.`});
     else erh.push({lv:'good',t:base+`Im Rahmen deines Normalwerts (${r(rhr30)}) — stabile Grunderholung.`});
   }
@@ -743,7 +749,7 @@ function renderInsight(){
     const bandTxt=(bLow!=null&&bHigh!=null)?` (Baseline ${r(bLow)}–${r(bHigh)} ms)`:'';
     const base=`HRV Ø <span class="m">${r(hrvNow)} ms</span>${bandTxt}${tArrow(hrvT)}. `;
     const expl='Die Herzratenvariabilität misst den Abstand zwischen den Herzschlägen und spiegelt dein vegetatives Nervensystem: hohe Werte = starker Parasympathikus = gute Erholung. ';
-    if(bLow!=null&&hrvNow<bLow) erh.push({lv:'warn',t:base+expl+`Aktuell <b>unter</b> deiner Baseline — dein Körper steht noch unter Restbelastung. Setz auf Schlaf, Spaziergänge und lockeres Training statt harter Reize.`});
+    if(bLow!=null&&hrvNow<bLow) erh.push({lv:'warn',a:'Lockerer trainieren.',t:base+expl+`Aktuell <b>unter</b> deiner Baseline — dein Körper steht noch unter Restbelastung. Setz auf Schlaf, Spaziergänge und lockeres Training statt harter Reize.`});
     else if(bHigh!=null&&hrvNow>bHigh) erh.push({lv:'good',t:base+expl+`Aktuell <b>über</b> deiner Baseline — sehr gute Erholung, dein System ist belastbar und bereit für intensivere Einheiten.`});
     else erh.push({lv:'good',t:base+expl+`Im normalen Bereich deiner Baseline — ausgeglichene Erholung.`});
   }
@@ -751,8 +757,8 @@ function renderInsight(){
   const slp7=avg(lastN('sleepSeconds',7).map(s=>s/3600)), scr7=avg(lastN('sleepScore',7)), slpT=trend('sleepSeconds',7);
   if(slp7!=null){
     const base=`Schlaf Ø <span class="m">${r(slp7,1)} h</span>${scr7!=null?` · Score ${r(scr7)}`:''}${slpT?` · <b>${slpT.d>0?'↑':(slpT.d<0?'↓':'→')} ${(slpT.d/3600>0?'+':'')}${r(slpT.d/3600,1)} h</b> vs. Vorwoche`:''}. `;
-    if(slp7<6.5) erh.push({lv:'alert',t:base+`Deutlich unter den empfohlenen 7–9 h. Schlaf ist die Zeit, in der Wachstumshormone ausgeschüttet, Muskeln repariert und Gelerntes gefestigt werden. Dauerhaftes Defizit hebt Ruhepuls & Stress, senkt HRV, Readiness und Konzentration. <b>Das ist aktuell dein größter Gesundheits-Hebel.</b>`});
-    else if(slp7<7.2) erh.push({lv:'warn',t:base+`Knapp unter dem Optimum. 30–45 Min früher ins Bett würden HRV und Readiness spürbar heben.`});
+    if(slp7<6.5) erh.push({lv:'alert',a:'Mehr schlafen.',t:base+`Deutlich unter den empfohlenen 7–9 h. Schlaf ist die Zeit, in der Wachstumshormone ausgeschüttet, Muskeln repariert und Gelerntes gefestigt werden. Dauerhaftes Defizit hebt Ruhepuls & Stress, senkt HRV, Readiness und Konzentration. <b>Das ist aktuell dein größter Gesundheits-Hebel.</b>`});
+    else if(slp7<7.2) erh.push({lv:'warn',a:'Früher ins Bett.',t:base+`Knapp unter dem Optimum. 30–45 Min früher ins Bett würden HRV und Readiness spürbar heben.`});
     else erh.push({lv:'good',t:base+`Im guten Bereich — deine Regenerationsbasis stimmt.`});
   }
   // Schlafphasen
@@ -760,15 +766,15 @@ function renderInsight(){
   if(deep7!=null&&rem7!=null&&tot7){
     const dp=deep7/tot7*100, rp=rem7/tot7*100;
     const base=`Schlafphasen: <span class="m">${r(dp)}%</span> Tief · <span class="m">${r(rp)}%</span> REM. `;
-    if(dp<13) erh.push({lv:'warn',t:base+`Der Tiefschlaf (ideal ~13–23%) ist knapp — genau er treibt körperliche Regeneration und Immunsystem. Kühle, dunkle Räume, kein Alkohol und feste Zeiten fördern ihn.`});
-    else if(rp<18) erh.push({lv:'warn',t:base+`Der REM-Anteil (ideal ~20–25%) ist niedrig — REM stärkt Gedächtnis und mentale Erholung und leidet besonders unter spätem Alkohol und zu kurzem Schlaf.`});
+    if(dp<13) erh.push({lv:'warn',a:'Tiefschlaf fördern.',t:base+`Der Tiefschlaf (ideal ~13–23%) ist knapp — genau er treibt körperliche Regeneration und Immunsystem. Kühle, dunkle Räume, kein Alkohol und feste Zeiten fördern ihn.`});
+    else if(rp<18) erh.push({lv:'warn',a:'Mehr REM holen.',t:base+`Der REM-Anteil (ideal ~20–25%) ist niedrig — REM stärkt Gedächtnis und mentale Erholung und leidet besonders unter spätem Alkohol und zu kurzem Schlaf.`});
     else erh.push({lv:'good',t:base+`Tief- und REM-Anteil liegen im gesunden Bereich — erholsame Schlafarchitektur.`});
   }
   // Body Battery
   const bbHigh=avg(lastN('bodyBatteryHighestValue',7)), bbLow=avg(lastN('bodyBatteryLowestValue',7));
   if(bbHigh!=null){
     const base=`Body Battery Ø-Spitze <span class="m">${r(bbHigh)}</span>${bbLow!=null?` / Tief ${r(bbLow)}`:''}. `;
-    if(bbHigh<60) erh.push({lv:'warn',t:base+`Dein Energiespeicher lädt tagsüber nicht mehr voll auf — ein Zeichen, dass Erholung (v.a. Schlaf) und Belastung aus der Balance sind.`});
+    if(bbHigh<60) erh.push({lv:'warn',a:'Mehr erholen.',t:base+`Dein Energiespeicher lädt tagsüber nicht mehr voll auf — ein Zeichen, dass Erholung (v.a. Schlaf) und Belastung aus der Balance sind.`});
     else erh.push({lv:'good',t:base+`Dein Energiespeicher lädt gut auf — Belastung und Erholung sind im Gleichgewicht.`});
   }
   if(erh.length)S.push({title:'Erholung',items:erh});
@@ -778,14 +784,14 @@ function renderInsight(){
   const tr7=avg(lastN('trainingReadiness',7)), trT=trend('trainingReadiness',7);
   if(tr7!=null){
     const base=`Training Readiness Ø <span class="m">${r(tr7)}/100</span>${tArrow(trT)}. `;
-    if(tr7<40) bel.push({lv:'warn',t:base+`Niedrig — Garmin bündelt hier Schlaf, HRV, Ruhepuls und Vorbelastung. Dein Körper meldet Erholungsbedarf: lockere Einheiten (Zone 2, Schwimmen ruhig) bringen jetzt mehr als harte Reize.`});
+    if(tr7<40) bel.push({lv:'warn',a:'Locker trainieren.',t:base+`Niedrig — Garmin bündelt hier Schlaf, HRV, Ruhepuls und Vorbelastung. Dein Körper meldet Erholungsbedarf: lockere Einheiten (Zone 2, Schwimmen ruhig) bringen jetzt mehr als harte Reize.`});
     else if(tr7>=65) bel.push({lv:'good',t:base+`Hoch — sehr gute Phase für intensive Einheiten und neue Bestleistungen. Nutze das Fenster.`});
     else bel.push({lv:'good',t:base+`Solide Basis für moderates Training; für harte Intervalle auf Tage mit >65 warten.`});
   }
   const st7=avg(lastN('averageStressLevel',7)), stT=trend('averageStressLevel',7);
   if(st7!=null){
     const base=`Stress Ø <span class="m">${r(st7)}/100</span>${tArrow(stT,true)}. `;
-    if(st7>=50) bel.push({lv:'warn',t:base+`Erhöht — Garmin leitet Stress aus der HRV ab, misst also körperliche Anspannung (auch durch Koffein, wenig Schlaf, mentale Last). Kurze Atem-Pausen, Spaziergänge und feste Offline-Zeiten senken ihn messbar.`});
+    if(st7>=50) bel.push({lv:'warn',a:'Stress senken.',t:base+`Erhöht — Garmin leitet Stress aus der HRV ab, misst also körperliche Anspannung (auch durch Koffein, wenig Schlaf, mentale Last). Kurze Atem-Pausen, Spaziergänge und feste Offline-Zeiten senken ihn messbar.`});
     else if(st7<=30) bel.push({lv:'good',t:base+`Angenehm niedrig — gute Balance zwischen An- und Entspannung.`});
     else bel.push({lv:'good',t:base+`Im moderaten Bereich — unauffällig.`});
   }
@@ -793,7 +799,7 @@ function renderInsight(){
   const im=lastN('moderateIntensityMinutes',7), vm=lastN('vigorousIntensityMinutes',7);
   if(im.length){const wk=im.reduce((a,b)=>a+b,0)+2*vm.reduce((a,b)=>a+(b||0),0);
     const base=`Intensitätsminuten <span class="m">${r(wk)}</span> in 7 Tagen (WHO-Ziel: 150). `;
-    if(wk<150) bel.push({lv:'warn',t:base+`Unter der Gesundheits-Empfehlung. Schon zügiges Gehen oder lockeres Schwimmen zahlt ein — Ziel: 150 moderate (oder 75 intensive) Minuten pro Woche.`});
+    if(wk<150) bel.push({lv:'warn',a:'Trainier mehr.',t:base+`Unter der Gesundheits-Empfehlung. Schon zügiges Gehen oder lockeres Schwimmen zahlt ein — Ziel: 150 moderate (oder 75 intensive) Minuten pro Woche.`});
     else bel.push({lv:'good',t:base+`Über der Empfehlung — starker Beitrag für Herz-Kreislauf-Gesundheit.`});
   }
   if(bel.length)S.push({title:'Belastung & Training',items:bel});
@@ -808,12 +814,12 @@ function renderInsight(){
     const t=male?[ (age<30?[46,50,55]:age<40?[43,48,53]:[40,45,50]) ]:[ (age<30?[38,42,47]:age<40?[35,40,45]:[33,38,43]) ];
     const [avgHi,good,exc]=t[0];
     if(vo2>=exc){cat='exzellent';lv='good';}else if(vo2>=good){cat='sehr gut';lv='good';}else if(vo2>=avgHi){cat='gut';lv='good';}else{cat='ausbaufähig';lv='warn';}
-    fit.push({lv,t:`VO₂max <span class="m">${r(vo2,1)}</span> — für dein Alter <b>${cat}</b>. Der Wert schätzt, wie viel Sauerstoff dein Körper maximal verwerten kann; er gilt als einer der besten Einzel-Prädiktoren für langfristige Gesundheit und lässt sich v.a. durch Intervalle und lange lockere Einheiten steigern.`});
+    fit.push({lv,a:lv==='warn'?'Ausdauer aufbauen.':'',t:`VO₂max <span class="m">${r(vo2,1)}</span> — für dein Alter <b>${cat}</b>. Der Wert schätzt, wie viel Sauerstoff dein Körper maximal verwerten kann; er gilt als einer der besten Einzel-Prädiktoren für langfristige Gesundheit und lässt sich v.a. durch Intervalle und lange lockere Einheiten steigern.`});
   }
   const stp7=avg(lastN('totalSteps',7)), goal=latest(days,'dailyStepGoal'), stpT=trend('totalSteps',7);
   if(stp7!=null){
     const base=`Schritte Ø <span class="m">${r(stp7)}</span>/Tag${goal?` (Ziel ${r(goal)})`:''}${tArrow(stpT)}. `;
-    if(goal&&stp7<goal*0.8) fit.push({lv:'warn',t:base+`Unter deinem Tagesziel. Alltagsbewegung (Treppen, Wege zu Fuß) ist ein unterschätzter Baustein für Herz, Stoffwechsel und Stimmung.`});
+    if(goal&&stp7<goal*0.8) fit.push({lv:'warn',a:'Mehr gehen.',t:base+`Unter deinem Tagesziel. Alltagsbewegung (Treppen, Wege zu Fuß) ist ein unterschätzter Baustein für Herz, Stoffwechsel und Stimmung.`});
     else fit.push({lv:'good',t:base+`Gutes Alltags-Aktivitätsniveau.`});
   }
   const resp=latest(days,'avgWakingRespirationValue');
@@ -831,7 +837,7 @@ function renderInsight(){
 
   el.innerHTML=`<div class="verdict">${verdict}</div>`
     +S.map(sec=>`<div class="inssec">${sec.title}</div>`
-      +sec.items.map(i=>`<div class="ins"><span class="dot ${i.lv}"></span><div class="it">${i.t}</div></div>`).join('')).join('')
+      +sec.items.map(i=>`<div class="ins"><span class="dot ${i.lv}"></span><div class="it">${i.a?`<b class="act ${i.lv}">${i.a}</b> `:''}${i.t}</div></div>`).join('')).join('')
     +`<div class="insdisc">Automatische, datenbasierte Auswertung deiner Garmin-Werte — kein medizinischer Rat. Bei anhaltenden Auffälligkeiten ärztlich abklären.</div>`;
 }
 
@@ -1320,7 +1326,9 @@ const STATES={
   cut:{label:'Cut (Definition)',kcalF:0.80,prot:2.2,fat:0.9,
     desc:'Kaloriendefizit zum Fettabbau. Hohes Protein schützt die Muskulatur, Kohlenhydrate rund ums Training gelegt. Ziel: Fett verlieren, Kraft halten.'},
   lazy:{label:'Lazy (Erhaltung)',kcalF:1.0,prot:1.6,fat:1.0,
-    desc:'Erhaltungsphase ohne aktives Zu- oder Abnehmen. Ausgewogene Verteilung, entspanntes Essen auf Verbrauchsniveau.'}
+    desc:'Erhaltungsphase ohne aktives Zu- oder Abnehmen. Ausgewogene Verteilung, entspanntes Essen auf Verbrauchsniveau.'},
+  krank:{label:'Krank / Verletzt (Erhalt)',kcalF:1.0,prot:2.0,fat:1.0,
+    desc:'Krank oder verletzt — Ziel ist nur der Erhalt: Muskulatur schützen, Immunsystem & Regeneration stützen. Kalorien auf Verbrauchsniveau (der sinkt bei weniger Bewegung ohnehin), hohes Protein gegen Muskelabbau, viel Flüssigkeit und Mikronährstoffe. Kein Leistungsdruck.'}
 };
 
 function avgTDEE(){const e=garminEnergy();return e?e.tdee:null;}
@@ -1342,6 +1350,30 @@ function mifflin(b){
   const s=b.sex==='w'?-161:5;
   const bmr=10*b.weight+6.25*b.height-5*b.age+s;
   return Math.round(bmr*1.5); // moderat aktiv
+}
+// Erholungs-Signale direkt aus Garmin → steuern Anpassung von Protein, Wasser & Supplementen
+function garminRecovery(){
+  if(!G||!G.wellness)return null;
+  const days=Object.keys(G.wellness).sort();
+  const lastN=(k,n)=>{const a=[];for(let i=days.length-1;i>=0&&a.length<n;i--){const v=G.wellness[days[i]][k];if(v!=null)a.push(v);}return a;};
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const sleep7=avg(lastN('sleepSeconds',7).map(s=>s/3600));
+  const readiness7=avg(lastN('trainingReadiness',7));
+  const stress7=avg(lastN('averageStressLevel',7));
+  const active7=avg(lastN('activeKilocalories',7));
+  const vig7=avg(lastN('vigorousIntensityMinutes',7));
+  const hrvNow=avg(lastN('hrvLastNightAvg',3));
+  let bLow=null;for(let i=days.length-1;i>=0;i--){const v=G.wellness[days[i]].hrvBaselineLow;if(v!=null){bLow=v;break;}}
+  const hrvLow=(hrvNow!=null&&bLow!=null)?hrvNow<bLow:false;
+  let score=0;const reasons=[];
+  if(sleep7!=null&&sleep7<6.8){score--;reasons.push('wenig Schlaf');}
+  if(sleep7!=null&&sleep7>=7.5)score++;
+  if(readiness7!=null&&readiness7<45){score--;reasons.push('niedrige Readiness');}
+  if(readiness7!=null&&readiness7>=65)score++;
+  if(hrvLow){score--;reasons.push('HRV unter Baseline');}
+  if(stress7!=null&&stress7>=50){score--;reasons.push('erhöhter Stress');}
+  const highLoad=(active7!=null&&active7>700)||(vig7!=null&&vig7>15);
+  return {sleep7,readiness7,stress7,active7,hrvLow,highLoad,poor:score<=-1,good:score>=1,reasons};
 }
 
 function getBody(){return store.get('friday_body',{state:'lazy',weight:'',height:'',age:'',sex:'m'});}
@@ -1372,52 +1404,92 @@ function renderMacros(){
     $('#macroExplain').textContent='';$('#suppList').innerHTML='';
     return;
   }
+  const rec=garminRecovery();
   const target=Math.round(maint*st.kcalF/10)*10;
   const diff=target-maint;
-  let protG=null,fatG=null,carbG=null;
+  // Protein steigt bei hoher Trainingslast (Garmin), Erholung senkt die Kohlenhydrate leicht
+  const protPerKg=st.prot+((rec&&rec.highLoad)?0.15:0);
+  const carbF=(rec&&rec.poor)?0.88:1;        // bei schlechter Erholung ~12 % KH runter, Rest in Fett
+  let protG=null,fatG=null,carbG=null,waterL=null,fiberG=null;
   if(w){
-    protG=Math.round(w*st.prot);
+    protG=Math.round(w*protPerKg);
     fatG=Math.round(w*st.fat);
-    carbG=Math.max(0,Math.round((target-protG*4-fatG*9)/4));
+    carbG=Math.max(0,Math.round((target-protG*4-fatG*9)/4*carbF));
+    // Wasser aus Körpergewicht + gemessenem Aktivitätsverbrauch (Schweißverlust)
+    const actMl=(rec&&rec.active7)?rec.active7/1000*0.6:0;
+    waterL=Math.round((w*0.035+actMl)*10)/10;
   }
+  fiberG=Math.round(target/1000*14);
   const tiles=[
     {k:'Kalorien',v:target,u:'kcal',cls:'gold'},
     {k:'Protein',v:protG,u:'g',cls:'live'},
     {k:'Kohlenhydrate',v:carbG,u:'g',cls:''},
-    {k:'Fett',v:fatG,u:'g',cls:'rose'}
+    {k:'Fett',v:fatG,u:'g',cls:'rose'},
+    {k:'Wasser',v:waterL,u:'L',cls:''},
+    {k:'Ballaststoffe',v:fiberG,u:'g',cls:''}
   ];
   $('#macroSub').innerHTML=st.label+' · '+(diff>0?`+${diff}`:diff)+' kcal ggü. Verbrauch';
   $('#macroGrid').innerHTML=tiles.map(t=>
     `<div class="stat ${t.cls}"><div class="k">${t.k}</div><div class="v">${t.v!=null?t.v:'–'}<small>${t.u}</small></div></div>`).join('');
+
+  // Erholungs-Anpassung aus Garmin — fett, was du heute tun solltest
+  let reco='';
+  if(rec){
+    const sl=rec.sleep7!=null?rec.sleep7.toFixed(1)+' h':'–', rd=rec.readiness7!=null?Math.round(rec.readiness7):'–';
+    if(rec.poor)
+      reco=`<span class="dot warn"></span><div class="it"><b>Heute auf Erholung setzen.</b> Deine Garmin-Werte zeigen ${rec.reasons.join(', ')} (Schlaf Ø ${sl}, Readiness ${rd}). Kohlenhydrate sind leicht reduziert, <b>Protein bleibt hoch</b>, trink genug — und verschieb harte Einheiten auf einen Tag mit besserer Readiness.`;
+    else if(rec.good)
+      reco=`<span class="dot good"></span><div class="it"><b>Grünes Licht — gib Gas.</b> Deine Erholung sieht stark aus (Schlaf Ø ${sl}, Readiness ${rd}). Gute Phase für intensives Training; ruhig <b>mehr Kohlenhydrate rund ums Workout</b>.`;
+    else if(rec.highLoad)
+      reco=`<span class="dot good"></span><div class="it"><b>Hohe Trainingslast erkannt.</b> Ich habe dein <b>Protein leicht angehoben</b> und mehr Flüssigkeit/Elektrolyte eingeplant.`;
+  }
+  $('#recoNote').innerHTML = reco
+    ? `<div class="ins" style="border:1px solid var(--hairline-soft);border-radius:3px;padding:12px 13px;margin:14px 0 4px;background:var(--glass);">${reco}</div>`
+    : '';
+
   const rangeTxt=(ge&&ge.max-ge.min>=300)
-    ? ` <b>An aktiven Tagen</b> verbrauchst du bis ~${ge.max} kcal, an ruhigen ~${ge.min} — iss an Trainingstagen entsprechend mehr (v.a. Kohlenhydrate).`
+    ? ` An aktiven Tagen verbrauchst du bis ~${ge.max} kcal, an ruhigen ~${ge.min} — iss an Trainingstagen entsprechend mehr (v.a. Kohlenhydrate).`
     : '';
   $('#macroExplain').innerHTML = w
-    ? `Verteilung für <b>${b.weight} kg</b>: <b>${st.prot} g</b> Protein und <b>${st.fat} g</b> Fett pro kg Körpergewicht, der Rest als Kohlenhydrate. Die Kalorien folgen deinem Garmin-Verbrauch, steigen also an aktiven Tagen automatisch mit.${rangeTxt}`
-    : 'Trag dein <b>Gewicht</b> ein, dann rechne ich Protein, Kohlenhydrate und Fett exakt aus.';
+    ? `Verteilung für <b>${b.weight} kg</b>: <b>${protPerKg.toFixed(1)} g</b> Protein${(rec&&rec.highLoad)?' (wegen hoher Trainingslast angehoben)':''} und <b>${st.fat} g</b> Fett pro kg, der Rest als Kohlenhydrate. Wasser &amp; Kalorien folgen deinem Garmin-Verbrauch.${rangeTxt}`
+    : 'Trag dein <b>Gewicht</b> ein, dann rechne ich Protein, Kohlenhydrate, Fett &amp; Wasser exakt aus.';
 
-  // Supplemente — Basis täglich, Optionales je nach Phase/Training
+  // Supplemente — Basis täglich, Optionales je nach Phase/Training; passen sich an Garmin-Erholung an
   const koffein=w?Math.round(w*3):null;
   const basis=[
     {n:'Kreatin Monohydrat',note:'täglich, konstant — auch an Ruhetagen',v:5,u:'g'},
-    {n:'Magnesium (Citrat/Bisglycinat)',note:b.state==='lazy'?'abends — Regeneration & Schlaf':'abends — an Trainingstagen eher 400 mg',v:b.state==='lazy'?350:400,u:'mg'},
+    {n:'Magnesium (Citrat/Bisglycinat)',note:(rec&&rec.poor)?'abends — dein Schlaf/HRV braucht gerade Unterstützung':(b.state==='lazy'?'abends — Regeneration & Schlaf':'abends — an Trainingstagen eher 400 mg'),v:(rec&&rec.poor)?400:(b.state==='lazy'?350:400),u:'mg'},
     {n:'Omega-3 (EPA/DHA)',note:'mit einer fetthaltigen Mahlzeit',v:2,u:'g'},
     {n:'Vitamin D3',note:'v.a. Winterhalbjahr, mit Fett einnehmen',v:2000,u:'IE'},
     {n:'Zink',note:'abends — Immunsystem & Regeneration',v:15,u:'mg'},
     {n:'Whey-Protein',note:'nur falls du dein Protein-Ziel übers Essen nicht schaffst (1 Shake ≈ 30 g)',v:30,u:'g'}
   ];
-  const optional=[
-    {n:'Koffein',note:'~30–45 Min. vor dem Training (3 mg/kg)',v:koffein,u:'mg'},
-    {n:'Beta-Alanin',note:'täglich — stark für Intervalle & Schwimmen (Kribbeln ist harmlos)',v:3.2,u:'g'},
-    {n:'Citrullin-Malat',note:'~40 Min. vor harten Einheiten',v:7,u:'g'},
-    {n:'Ashwagandha (KSM-66)',note:'abends — Erholung & Schlafqualität',v:400,u:'mg'},
-    {n:'Vitamin C',note:'bei hohem Pensum & in der Erkältungszeit',v:250,u:'mg'}
-  ];
-  if(b.state==='cut'){
-    optional.unshift({n:'Elektrolyte',note:'im Defizit & bei viel Schwitzen',v:1,u:'Portion'});
-    optional.push({n:'Multivitamin',note:'Absicherung bei wenig Kalorien',v:1,u:'/Tag'});
+  // Garmin-getrieben: schlechte Erholung → Ashwagandha fix dazu; hohe Last → Elektrolyte fix dazu
+  if(rec&&rec.poor)basis.push({n:'Ashwagandha (KSM-66)',note:'abends — hebt deine schwächelnde HRV/Schlafqualität',v:400,u:'mg'});
+  if(rec&&rec.highLoad)basis.push({n:'Elektrolyte',note:'bei deiner aktuell hohen Trainingslast & viel Schwitzen',v:1,u:'Portion'});
+  let optional;
+  if(b.state==='krank'){
+    // Krank/verletzt: Immunsystem & Regeneration statt Leistung
+    optional=[
+      {n:'Vitamin C',note:'über den Tag verteilt — Immunsystem',v:500,u:'mg'},
+      {n:'Multivitamin',note:'Mikronährstoff-Absicherung bei wenig Appetit',v:1,u:'/Tag'}
+    ];
+    if(!(rec&&rec.highLoad))optional.unshift({n:'Elektrolyte',note:'bei Fieber/Schwitzen gegen Dehydrierung',v:1,u:'Portion'});
+    if(!(rec&&rec.poor))optional.push({n:'Ashwagandha (KSM-66)',note:'abends — Stress & Schlafqualität',v:400,u:'mg'});
+  } else {
+    optional=[
+      {n:'Koffein',note:'~30–45 Min. vor dem Training (3 mg/kg)',v:koffein,u:'mg'},
+      {n:'Beta-Alanin',note:'täglich — stark für Intervalle & Schwimmen (Kribbeln ist harmlos)',v:3.2,u:'g'},
+      {n:'Citrullin-Malat',note:'~40 Min. vor harten Einheiten',v:7,u:'g'},
+      {n:'Vitamin C',note:'bei hohem Pensum & in der Erkältungszeit',v:250,u:'mg'}
+    ];
+    if(!(rec&&rec.poor))optional.push({n:'Ashwagandha (KSM-66)',note:'abends — Erholung & Schlafqualität',v:400,u:'mg'});
+    if(b.state==='cut'){
+      if(!(rec&&rec.highLoad))optional.unshift({n:'Elektrolyte',note:'im Defizit & bei viel Schwitzen',v:1,u:'Portion'});
+      optional.push({n:'Multivitamin',note:'Absicherung bei wenig Kalorien',v:1,u:'/Tag'});
+    }
+    if(b.state==='bulk')optional.push({n:'Maltodextrin / Cluster-Dextrin',note:'nach dem Training, wenn das Kalorienziel schwer erreichbar ist',v:50,u:'g'});
   }
-  if(b.state==='bulk')optional.push({n:'Maltodextrin / Cluster-Dextrin',note:'nach dem Training, wenn das Kalorienziel schwer erreichbar ist',v:50,u:'g'});
   const row=s=>`<div class="supp"><div class="sn">${s.n}<small>${s.note}</small></div><div class="sv">${s.v!=null?s.v:'–'}<small>${s.u}</small></div></div>`;
   $('#suppList').innerHTML=
     `<div class="mail-h"><span>BASIS — JEDEN TAG</span></div>`+basis.map(row).join('')+
