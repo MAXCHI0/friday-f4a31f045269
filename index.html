@@ -367,6 +367,20 @@ textarea{min-height:90px;resize:vertical;}
     </div>
 
     <div class="panel">
+      <h2>Tages-Bilanz</h2>
+      <div class="sub">Trag ein, was du heute gegessen hast — ich bewerte es</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <label class="lbl" style="margin-top:0;">Heute gegessen (kcal)</label>
+          <input type="number" id="intakeKcal" placeholder="z.B. 2400" inputmode="numeric">
+        </div>
+        <button id="intakeClear" class="tab-pill" style="height:40px;">Zurücksetzen</button>
+      </div>
+      <div id="intakeBar" style="margin-top:16px;"></div>
+      <div id="intakeVerdict" style="font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:6px;"></div>
+    </div>
+
+    <div class="panel">
       <h2>Supplemente pro Tag</h2>
       <div class="sub">Richtwerte für deine Phase</div>
       <div id="suppList"></div>
@@ -1432,6 +1446,9 @@ function renderMacros(){
   $('#macroGrid').innerHTML=tiles.map(t=>
     `<div class="stat ${t.cls}"><div class="k">${t.k}</div><div class="v">${t.v!=null?t.v:'–'}<small>${t.u}</small></div></div>`).join('');
 
+  // Tages-Bilanz: eingegebene Kalorien gegen Ziel & Verbrauch bewerten
+  renderIntake(target,maint,st,b);
+
   // Erholungs-Anpassung aus Garmin — fett, was du heute tun solltest
   let reco='';
   if(rec){
@@ -1496,11 +1513,76 @@ function renderMacros(){
     `<div class="mail-h" style="margin-top:22px;"><span>OPTIONAL — JE NACH ZIEL &amp; TRAINING</span></div>`+optional.map(row).join('');
 }
 
+// Bewertet die heute eingegebenen Kalorien gegen Tagesziel (target) & Verbrauch (maint)
+function renderIntake(target,maint,st,b){
+  const bar=$('#intakeBar'),out=$('#intakeVerdict');
+  if(!bar||!out)return;
+  const today=new Date().toISOString().slice(0,10);
+  const intake=(b.intakeDate===today)?(parseFloat(b.intakeKcal)||0):0;
+  if($('#intakeKcal'))$('#intakeKcal').value=intake||'';
+
+  if(!intake){
+    bar.innerHTML='';
+    out.innerHTML='Trag oben ein, wie viele Kalorien du <b>heute</b> gegessen hast — ich sag dir, ob du für deine '+st.label+'-Phase auf Kurs bist.';
+    return;
+  }
+
+  const d=intake-target;                 // Abweichung vom Ziel
+  const vsMaint=intake-maint;            // Abweichung vom Verbrauch
+  const sign=n=>n>0?('+'+Math.round(n)):Math.round(n);
+
+  // Verdikt je nach Phase & Richtung
+  let dot='good',head='',tip='';
+  if(Math.abs(d)<=100){
+    dot='good';head='Punktlandung.';
+    tip=`Du liegst nur ${sign(d)} kcal neben deinem ${st.label}-Ziel — genau da, wo du heute sein willst.`;
+  } else if(d>0){ // über Ziel
+    if(b.state==='cut'){
+      dot='warn';head=d>300?'Zu viel fürs Defizit.':'Leicht über dem Defizit.';
+      tip=`${sign(d)} kcal über deinem Cut-Ziel${vsMaint>0?` und ${sign(vsMaint)} kcal über deinem Verbrauch — damit kein Defizit mehr, der Fettabbau pausiert heute.`:` — das Defizit ist kleiner als geplant, aber noch unter Verbrauch (${sign(vsMaint)}). Morgen wieder etwas enger.`}`;
+    } else if(b.state==='bulk'){
+      dot=d>400?'warn':'good';head=d>400?'Überschuss zu groß.':'Satter Überschuss.';
+      tip=d>400?`${sign(d)} kcal über Ziel — so viel Plus setzt eher Fett als Muskel an. Zieh die Kohlenhydrate etwas zurück.`:`${sign(d)} kcal über Ziel, im Bulk völlig okay — Hauptsache sauberes Essen und Training zieht nach.`;
+    } else {
+      dot='warn';head='Im Überschuss.';
+      tip=`${sign(d)} kcal über Ziel${vsMaint>0?` und ${sign(vsMaint)} über deinem Verbrauch — an einem ${st.label}-Tag landet das als Plus. Einzeltag unkritisch, nicht zur Regel machen.`:'.'}`;
+    }
+  } else { // unter Ziel
+    if(b.state==='bulk'){
+      dot='warn';head='Zu wenig zum Aufbauen.';
+      tip=`${sign(d)} kcal unter deinem Bulk-Ziel — ohne Überschuss kommt kein Muskel dazu. Leg noch eine Mahlzeit oder einen Shake drauf.`;
+    } else if(b.state==='cut'){
+      dot=d<-400?'warn':'good';head=d<-400?'Defizit zu aggressiv.':'Sauber im Defizit.';
+      tip=d<-400?`${sign(d)} kcal unter Ziel — so tief geht Kraft & Muskel flöten. Nicht zu hart runter, lieber stetig.`:`${sign(d)} kcal unter Ziel — Fettabbau läuft. Achte auf genug Protein, damit du Muskel hältst.`;
+    } else {
+      dot=d<-400?'warn':'good';head=d<-400?'Deutlich zu wenig.':'Leichtes Defizit.';
+      tip=`${sign(d)} kcal unter Ziel${d<-400?' — zu wenig für Erhalt & Regeneration, iss heute noch etwas nach.':`, ${sign(vsMaint)} ggü. Verbrauch. Als Erhaltungstag kein Problem.`}`;
+    }
+  }
+
+  // Leiste: Skala geht bis 135 % vom Ziel → Ziel-Markierung sitzt bei ~74 %
+  const SCALE=135;
+  const fillW=Math.max(2,Math.min(100,intake/target*100/SCALE*100));
+  const col=dot==='good'?'var(--live)':'var(--gold)';
+  bar.innerHTML=
+    `<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9.5px;color:var(--muted-soft);margin-bottom:5px;">
+       <span>${Math.round(intake)} kcal gegessen</span><span>Ziel ${target} kcal</span>
+     </div>
+     <div style="position:relative;height:12px;border-radius:6px;background:var(--glass);border:1px solid var(--hairline-soft);overflow:hidden;">
+       <div style="position:absolute;inset:0 auto 0 0;width:${fillW}%;background:${col};opacity:.65;"></div>
+       <div style="position:absolute;top:-2px;bottom:-2px;left:${Math.round(100/SCALE*100)}%;width:1.5px;background:var(--muted);" title="Ziel"></div>
+     </div>`;
+  out.innerHTML=`<span class="dot ${dot}"></span><b>${head}</b> ${tip}`;
+}
+
 function saveBody(patch){
   const b=Object.assign(getBody(),patch);
   store.set('friday_body',b);
   renderMacros();
 }
+// Tages-Bilanz: Eingabe speichern (mit Datum, damit sie täglich frisch startet)
+$('#intakeKcal').addEventListener('input',()=>saveBody({intakeKcal:$('#intakeKcal').value,intakeDate:new Date().toISOString().slice(0,10)}));
+$('#intakeClear').addEventListener('click',()=>saveBody({intakeKcal:'',intakeDate:''}));
 $('#stateSeg').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>saveBody({state:x.dataset.v})));
 $('#sexSeg').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>saveBody({sex:x.dataset.v})));
 ['bWeight','bHeight','bAge'].forEach(id=>{
